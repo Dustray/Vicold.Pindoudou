@@ -247,7 +247,7 @@
         if (File.Exists(palettePath))
         {
             var lines = File.ReadAllLines(palettePath);
-            return lines.Select(line => line.Split('\t')[1]).ToList();
+            return lines.Select(line => line.Split('\t')[1].ToUpper()).ToList();
         }
         else
         {
@@ -284,7 +284,7 @@
                 Directory.CreateDirectory(directoryPath);
             }
 
-            var lines = CustomPaletteColors.Select((color, index) => $"C{index + 1}\t{color}").ToList();
+            var lines = CustomPaletteColors.Select((color, index) => $"C{index + 1}\t{color.ToUpper()}").ToList();
             File.WriteAllLines(palettePath, lines);
 
             SuccessMessage = "自定义调色板保存成功";
@@ -308,7 +308,7 @@
         if (File.Exists(palettePath))
         {
             var lines = File.ReadAllLines(palettePath);
-            CustomPaletteColors = lines.Select(line => line.Split('\t')[1]).ToList();
+            CustomPaletteColors = lines.Select(line => line.Split('\t')[1].ToUpper()).ToList();
         }
         else
         {

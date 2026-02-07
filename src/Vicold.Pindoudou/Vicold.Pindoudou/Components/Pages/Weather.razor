@@ -40,14 +40,14 @@
             <h2>从默认 Mard 调色板选择颜色</h2>
             <div class="mb-3">
                 <label class="form-label">选择颜色 (可多选)</label>
-                <div class="d-flex flex-wrap gap-2 p-3 border rounded">
+                <div class="d-flex flex-wrap gap-1 p-3 border rounded">
                     @foreach (var item in MardPaletteColors)
                     {
-                        <div class="color-item position-relative d-flex flex-column align-items-center" style="width: 60px; margin: 5px; cursor: pointer;" @onclick="() => ToggleColorSelection(item.Color)">
-                        <div class="color-block position-relative" style="width: 40px; height: 40px; background-color: @item.Color; border: 1px solid #ddd; border-radius: 4px;">
+                        <div class="color-item d-flex flex-column align-items-center" style="width: 35px; margin: 2px; cursor: pointer;" @onclick="() => ToggleColorSelection(item.Color)">
+                        <div class="color-block position-relative" style="width: 30px; height: 30px; background-color: @item.Color; border: 1px solid #ddd; border-radius: 3px;">
                             @if (SelectedColors.Contains(item.Color))
                             {
-                                <div class="position-absolute top-0 right-0 w-6 h-6 bg-primary text-white flex items-center justify-center text-xs">
+                                <div class="position-absolute top-0 right-0 bg-white text-black flex items-center justify-center rounded-full border border-gray-300" style="width: 14px; height: 14px; font-size: 10px;">
                                     ✓
                                 </div>
                             }
@@ -72,48 +72,15 @@
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <h2>当前调色板: @SelectedPaletteName</h2>
-            <div class="mb-3">
-                <label for="paletteDescription" class="form-label">调色板描述 (可选)</label>
-                <input type="text" class="form-control" id="paletteDescription" @bind="PaletteDescription" placeholder="输入调色板描述">
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">颜色管理</label>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var (color, index) in PaletteColors.Select((c, i) => (c, i)))
-                    {
-                        <div class="color-item position-relative" style="width: 40px; height: 40px; background-color: @color; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
-                            <input type="color" class="position-absolute top-0 left-0 w-100 h-100 opacity-0 cursor-pointer" 
-                                   value="@color" @onchange="(e) => UpdateColor(index, e.Value?.ToString() ?? color)">
-                            <span class="position-absolute bottom-0 right-0 text-xs bg-white bg-opacity-70 px-1 rounded">@(GetColorCode(index))</span>
-                        </div>
-                    }
-                    <div class="color-item d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border: 2px dashed #ddd; border-radius: 4px; cursor: pointer;" @onclick="AddColor">
-                        <span class="text-muted">+</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mb-3">
-                <button class="btn btn-success" @onclick="SavePalette" disabled="@string.IsNullOrWhiteSpace(SelectedPaletteName) || SelectedPaletteName == "Mard"">
-                    保存调色板
-                </button>
-                <span class="text-success ml-2">@SuccessMessage</span>
-                <span class="text-danger ml-2">@ErrorMessage</span>
-            </div>
-        </div>
-    </div>
+
 
     <div class="row mt-4">
         <div class="col-md-12">
             <h2>调色板预览</h2>
-            <div class="palette-preview d-flex flex-wrap gap-1">
+            <div class="palette-preview d-flex flex-wrap gap-0">
                 @foreach (var color in PaletteColors)
                 {
-                    <div class="preview-color" style="width: 20px; height: 20px; background-color: @color; border: 1px solid #eee;"></div>
+                    <div class="preview-color" style="width: 15px; height: 15px; background-color: @color; border: 1px solid #eee;"></div>
                 }
             </div>
         </div>

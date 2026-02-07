@@ -14,19 +14,20 @@
                 @if (PaletteColors != null && PaletteColors.Count > 0)
                 {
                     <div class="compact-color-grid">
-                        @for (int i = 0; i < PaletteColors.Count; i++)
+                        @foreach (var kvp in PaletteColors)
                         {
-                            var index = i;
+                            var color = kvp.Key;
+                            var code = kvp.Value;
                             <div 
                                 class="compact-color-item"
-                                @onclick="() => SelectColor(PaletteColors[index])"
+                                @onclick="() => SelectColor(color)"
                                 title="点击选择颜色"
                             >
                                 <div 
                                     class="color-swatch" 
-                                    style="background-color: @PaletteColors[index]" 
+                                    style="background-color: @color" 
                                 ></div>
-                                <div class="color-number">@GetPaletteCode(index)</div>
+                                <div class="color-number">@(@code)</div>
                             </div>
                         }
                     </div>
@@ -43,6 +44,11 @@
                     <label>当前选择的颜色:</label>
                     <div class="color-preview" style="background-color: @SelectedColor"></div>
                     <input type="color" @bind="SelectedColor" class="form-control form-control-color" />
+                </div>
+                
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="showCodes" @bind="ShowCodes" />
+                    <label class="form-check-label" for="showCodes">显示代码</label>
                 </div>
                 
                 <button class="btn btn-secondary mt-2" @onclick="GoBack">返回</button>
@@ -70,8 +76,12 @@
                                                     class="pixel" 
                                                     style="background-color: @PixelData[index]"
                                                     @onclick="() => EditPixel(x, y)"
-                                                    title="点击编辑像素"
-                                                ></div>
+                                                    title="@PixelData[index]" >
+                                                    @if (ShowCodes)
+                                                    {
+                                                        <div class="color-number-in-pixel">@(PaletteColors.TryGetValue(PixelData[index], out var code) ? code : "")</div>
+                                                    }
+                                                </div>
                                             }
                                         }
                                     </div>
@@ -136,6 +146,10 @@
         border: 1px solid #eee;
         cursor: pointer;
         box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
     }
     
     .pixel:hover {
@@ -173,12 +187,24 @@
     .compact-color-item:hover .color-swatch {
         border: 1px solid #000;
     }
-    
+
     .color-number {
+        font-size: 10px;
+        color: #333;
+        text-align: center;
+        width: 100%;
+    }
+
+    .color-number-in-pixel {
         font-size: 8px;
         color: #333;
         text-align: center;
         width: 100%;
+        text-shadow: 0.5px 0.5px 0px rgba(255, 255, 255, 0.8);
+        font-weight: bold;
+        line-height: 1;
+        margin: 0;
+        padding: 0;
     }
     
     .color-preview {
@@ -200,38 +226,45 @@
     private int Width { get; set; }
     private int Height { get; set; }
     private string Palette { get; set; } = "Mard";
-    private List<string> PaletteColors { get; set; } = new List<string>();
+    private Dictionary<string, string> PaletteColors { get; set; } = new Dictionary<string, string>();
     private string SelectedColor { get; set; } = "#FFFFFF";
-    
+    private bool ShowCodes { get; set; } = true;
+
     protected override void OnInitialized()
     {
         // 从 URL 参数中获取数据
         var uri = new Uri(NavigationManager.Uri);
         var queryString = uri.Query;
-        
+
         // 解析参数
         Width = GetQueryParameter(queryString, "width", 20);
         Height = GetQueryParameter(queryString, "height", 20);
         Palette = GetQueryParameter(queryString, "palette", "Mard");
-        
+
         // 解析像素数据
         var pixelDataString = GetQueryParameter(queryString, "pixelData", "");
         if (!string.IsNullOrEmpty(pixelDataString))
         {
             PixelData = pixelDataString.Split(',');
         }
-        
+
         // 解析调色板颜色
         var paletteColorsString = GetQueryParameter(queryString, "paletteColors", "");
         if (!string.IsNullOrEmpty(paletteColorsString))
         {
-            PaletteColors = paletteColorsString.Split(',').ToList();
+            var colors = paletteColorsString.Split(',');
+            for (int i = 0; i < colors.Length; i++)
+            {
+                var color = colors[i];
+                var code = GetPaletteCode(i);
+                PaletteColors[color] = code;
+            }
         }
-        
+
         // 设置默认选择的颜色
         if (PaletteColors.Count > 0)
         {
-            SelectedColor = PaletteColors[0];
+            SelectedColor = PaletteColors.First().Key;
         }
     }
     
