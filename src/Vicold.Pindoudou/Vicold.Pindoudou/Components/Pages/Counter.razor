@@ -531,12 +531,13 @@
     window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors, showCodes) {
         // 配置参数
         const pixelSize = 40; // 每个像素的大小，增大一倍以提高清晰度
-        const padding = 40; // 留白大小
+        const padding = 70; // 留白大小
         const codeFontSize = 16; // 像素中代码字号
-        const paletteTitleFontSize = 22; // 调色板标题字号
-        const paletteCodeFontSize = 12; // 调色板项中代码字号
-        const paletteCountFontSize = 12; // 调色板项中数量字号
-        const paletteItemSize = 30; // 调色板项大小
+        const paletteTitleFontSize = 40; // 调色板标题字号
+        const paletteCodeFontSize = 16; // 调色板项中代码字号
+        const paletteCountFontSize = 16; // 调色板项中数量字号
+        const paletteItemSize = 40; // 调色板项大小
+        const gridNumberFontSize = 16; // 网格编号字号
         
         // 统计每个颜色的使用数量
         const colorCount = {};
@@ -569,6 +570,42 @@
         // 绘制像素
         const pixelStartX = padding;
         const pixelStartY = padding;
+        
+        // 绘制网格编号
+        ctx.fillStyle = '#333';
+        ctx.font = gridNumberFontSize + 'px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // 绘制顶部编号（X轴，从左到右）
+        for (let x = 0; x < width; x++) {
+            const nx = pixelStartX + x * pixelSize + pixelSize / 2;
+            const ny = pixelStartY - 15;
+            ctx.fillText((x+1).toString(), nx, ny);
+        }
+        
+        // 绘制底部编号（X轴，从左到右）
+        for (let x = 0; x < width; x++) {
+            const nx = pixelStartX + x * pixelSize + pixelSize / 2;
+            const ny = pixelStartY + height * pixelSize + 15;
+            ctx.fillText((x+1).toString(), nx, ny);
+        }
+        
+        // 绘制左侧编号（Y轴，从下到上，左下角为0）
+        for (let y = 0; y < height; y++) {
+            const nx = pixelStartX - 15;
+            const ny = pixelStartY + (height - 1 - y) * pixelSize + pixelSize / 2;
+            ctx.fillText((y+1).toString(), nx, ny);
+        }
+        
+        // 绘制右侧编号（Y轴，从下到上，左下角为0）
+        for (let y = 0; y < height; y++) {
+            const nx = pixelStartX + width * pixelSize + 15;
+            const ny = pixelStartY + (height - 1 - y) * pixelSize + pixelSize / 2;
+            ctx.fillText((y+1).toString(), nx, ny);
+        }
+        
+        // 绘制像素
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const index = y * width + x;
@@ -645,20 +682,20 @@
             ctx.font = paletteCodeFontSize + 'px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillText(code, paletteX + itemWidth / 2, paletteY + paletteItemSize + 2);
+            ctx.fillText(code, paletteX + itemWidth / 2, paletteY + paletteItemSize + 4);
             
             // 绘制数量
             ctx.fillStyle = '#666';
             ctx.font = paletteCountFontSize + 'px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillText(colorCountValue + '个', paletteX + itemWidth / 2, paletteY + paletteItemSize + 12);
+            ctx.fillText(colorCountValue + '个', paletteX + itemWidth / 2, paletteY + paletteItemSize + 20);
             
             // 更新位置
             count++;
             if (count % maxPerRow === 0) {
                 paletteX = paletteStartX;
-                paletteY += paletteItemSize + 25;
+                paletteY += paletteItemSize + 40;
             } else {
                 paletteX += itemWidth + 10;
             }
