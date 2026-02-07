@@ -34,8 +34,10 @@
             <div class="mb-3">
                 <label class="form-label">调色板</label>
                 <select class="form-control" @bind="SelectedPalette">
-                    <option value="Mard">Mard (默认)</option>
-                    <option value="Custom">自定义</option>
+                    @foreach (var palette in AllPalettes)
+                    {
+                        <option value="@palette.Name">@palette.Name (@(palette.Type == "System" ? "标准" : "自定义"))</option>
+                    }
                 </select>
             </div>
             
@@ -184,14 +186,74 @@
     private int OriginalHeight { get; set; }
     private List<string> PaletteColors { get; set; } = new List<string>();
     private List<string> CustomPaletteColors { get; set; } = new List<string>();
+    private List<PaletteInfo> AllPalettes { get; set; } = new List<PaletteInfo>();
     private bool IsGenerating { get; set; } = false;
     private string? ErrorMessage { get; set; }
     private string? SuccessMessage { get; set; }
+
+    private class PaletteInfo
+    {
+        public string Name { get; set; }
+        public string Path { get; set; }
+        public string Type { get; set; } // "System" or "User"
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadPalette();
         LoadCustomPalette();
+        LoadAllPalettes();
+    }
+
+    private void LoadAllPalettes()
+    {
+        AllPalettes.Clear();
+        
+        // 使用项目的固定路径
+        // 加载 Palettes 文件夹中的系统调色板
+        string systemPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes");
+        if (Directory.Exists(systemPalettesPath))
+        {
+            var systemPalettes = Directory.GetFiles(systemPalettesPath, "*.txt")
+                .Select(file => new PaletteInfo
+                {
+                    Name = Path.GetFileNameWithoutExtension(file),
+                    Path = file,
+                    Type = "System"
+                })
+                .Where(palette => palette.Name != "Custom"); // 排除 Custom.txt，因为它是自定义调色板
+            
+            AllPalettes.AddRange(systemPalettes);
+        }
+        
+        // 加载 UserPalettes 文件夹中的用户调色板
+        string userPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "UserPalettes");
+        if (Directory.Exists(userPalettesPath))
+        {
+            var userPalettes = Directory.GetFiles(userPalettesPath, "*.txt")
+                .Select(file => new PaletteInfo
+                {
+                    Name = Path.GetFileNameWithoutExtension(file),
+                    Path = file,
+                    Type = "User"
+                });
+            
+            AllPalettes.AddRange(userPalettes);
+        }
+    }
+
+    private List<string> LoadPaletteFromFile(string palettePath)
+    {
+        if (File.Exists(palettePath))
+        {
+            var lines = File.ReadAllLines(palettePath);
+            return lines.Select(line => line.Split('\t')[1]).ToList();
+        }
+        else
+        {
+            // 如果文件不存在，返回默认颜色
+            return new List<string> { "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF" };
+        }
     }
 
     private void AddCustomColor()
@@ -328,7 +390,27 @@
             return;
         }
 
-        var currentPalette = SelectedPalette == "Custom" ? CustomPaletteColors : PaletteColors;
+        List<string> currentPalette;
+        if (SelectedPalette == "Custom")
+        {
+            currentPalette = CustomPaletteColors;
+        }
+        else
+        {
+            // 查找选中的调色板
+            var selectedPaletteInfo = AllPalettes.FirstOrDefault(p => p.Name == SelectedPalette);
+            if (selectedPaletteInfo != null)
+            {
+                // 加载对应的调色板文件
+                currentPalette = LoadPaletteFromFile(selectedPaletteInfo.Path);
+            }
+            else
+            {
+                // 默认使用 Mard 调色板
+                currentPalette = PaletteColors;
+            }
+        }
+        
         if (currentPalette.Count == 0)
         {
             ErrorMessage = "当前调色板中没有颜色";
