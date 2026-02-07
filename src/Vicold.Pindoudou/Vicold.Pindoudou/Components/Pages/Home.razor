@@ -5,6 +5,7 @@
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
 @inject NavigationManager NavigationManager
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
 <h1>拼豆图纸设计工具</h1>
 
@@ -13,13 +14,13 @@
         <!-- 左侧控制面板 -->
         <div class="col-md-4">
             <h3>设置</h3>
-            
+
             <!-- 图片上传 -->
             <div class="mb-3">
                 <label class="form-label">上传图片</label>
                 <InputFile OnChange="LoadImage" accept=".jpg,.jpeg,.png,.gif" />
             </div>
-            
+
             <!-- 像素大小设置 -->
             <div class="mb-3">
                 <label class="form-label">像素宽度</label>
@@ -29,7 +30,7 @@
                 <label class="form-label">像素高度</label>
                 <input type="number" class="form-control" @bind="PixelHeight" min="1" max="100" />
             </div>
-            
+
             <!-- 调色板选择 -->
             <div class="mb-3">
                 <label class="form-label">调色板</label>
@@ -40,26 +41,7 @@
                     }
                 </select>
             </div>
-            
-            <!-- 自定义调色板管理 -->
-            @if (SelectedPalette == "Custom")
-            {
-                <div class="mb-3">
-                    <h4>自定义调色板</h4>
-                    <div class="custom-palette">
-                        @for (int i = 0; i < CustomPaletteColors.Count; i++)
-                        {
-                            <div class="palette-color">
-                                <input type="color" class="form-control form-control-color" @bind="CustomPaletteColors[i]" />
-                                <button class="btn btn-sm btn-danger" @onclick="() => RemoveCustomColor(i)">删除</button>
-                            </div>
-                        }
-                    </div>
-                    <button class="btn btn-sm btn-secondary" @onclick="AddCustomColor">添加颜色</button>
-                    <button class="btn btn-sm btn-success" @onclick="SaveCustomPalette">保存调色板</button>
-                </div>
-            }
-            
+
             <!-- 生成按钮 -->
             <button class="btn btn-primary" @onclick="GeneratePixelArt" disabled="@IsGenerating">
                 @if (IsGenerating)
@@ -71,20 +53,20 @@
                     <span>生成像素图</span>
                 }
             </button>
-            
+
             <!-- 错误消息 -->
             @if (!string.IsNullOrEmpty(ErrorMessage))
             {
                 <div class="alert alert-danger mt-2">@ErrorMessage</div>
             }
-            
+
             <!-- 成功消息 -->
             @if (!string.IsNullOrEmpty(SuccessMessage))
             {
                 <div class="alert alert-success mt-2">@SuccessMessage</div>
             }
         </div>
-        
+
         <!-- 右侧预览区域 -->
         <div class="col-md-8">
             <h3>预览</h3>
@@ -129,44 +111,37 @@
         text-align: center;
         background-color: #f9f9f9;
     }
-    
+
     .pixel-art {
         margin: 0 auto;
     }
-    
+
     .pixel-row {
         display: flex;
     }
-    
+
     .pixel {
         width: 20px;
         height: 20px;
         border: 1px solid #eee;
     }
-    
+
     .original-image {
         max-width: 100%;
         max-height: 400px;
     }
-    
+
     .empty-preview {
         color: #999;
         padding: 100px 0;
     }
-    
-    .custom-palette {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-    
+
     .palette-color {
         display: flex;
         align-items: center;
         gap: 5px;
     }
-    
+
     .form-control-color {
         width: 60px;
         height: 40px;
@@ -185,7 +160,6 @@
     private int OriginalWidth { get; set; }
     private int OriginalHeight { get; set; }
     private List<string> PaletteColors { get; set; } = new List<string>();
-    private List<string> CustomPaletteColors { get; set; } = new List<string>();
     private List<PaletteInfo> AllPalettes { get; set; } = new List<PaletteInfo>();
     private bool IsGenerating { get; set; } = false;
     private string? ErrorMessage { get; set; }
@@ -201,14 +175,13 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadPalette();
-        LoadCustomPalette();
         LoadAllPalettes();
     }
 
     private void LoadAllPalettes()
     {
         AllPalettes.Clear();
-        
+
         // 使用项目的固定路径
         // 加载 Palettes 文件夹中的系统调色板
         string systemPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes");
@@ -220,12 +193,11 @@
                     Name = Path.GetFileNameWithoutExtension(file),
                     Path = file,
                     Type = "System"
-                })
-                .Where(palette => palette.Name != "Custom"); // 排除 Custom.txt，因为它是自定义调色板
-            
+                });
+
             AllPalettes.AddRange(systemPalettes);
         }
-        
+
         // 加载 UserPalettes 文件夹中的用户调色板
         string userPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "UserPalettes");
         if (Directory.Exists(userPalettesPath))
@@ -237,84 +209,39 @@
                     Path = file,
                     Type = "User"
                 });
-            
+
             AllPalettes.AddRange(userPalettes);
         }
     }
 
-    private List<string> LoadPaletteFromFile(string palettePath)
+    private Dictionary<string, string> LoadPaletteFromFile(string palettePath)
     {
+        var palette = new Dictionary<string, string>();
         if (File.Exists(palettePath))
         {
             var lines = File.ReadAllLines(palettePath);
-            return lines.Select(line => line.Split('\t')[1].ToUpper()).ToList();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var parts = lines[i].Split('\t');
+                if (parts.Length >= 2)
+                {
+                    var color = parts[1].ToUpper();
+                    palette[parts[0]] = color;
+                }
+            }
         }
         else
         {
             // 如果文件不存在，返回默认颜色
-            return new List<string> { "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF" };
-        }
-    }
-
-    private void AddCustomColor()
-    {
-        CustomPaletteColors.Add("#FFFFFF");
-    }
-
-    private void RemoveCustomColor(int index)
-    {
-        if (index >= 0 && index < CustomPaletteColors.Count)
-        {
-            CustomPaletteColors.RemoveAt(index);
-        }
-    }
-
-    private void SaveCustomPalette()
-    {
-        ErrorMessage = null;
-        SuccessMessage = null;
-
-        try
-        {
-            // 保存自定义调色板到文件
-            var palettePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes", "Custom.txt");
-            var directoryPath = Path.GetDirectoryName(palettePath);
-            if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
+            var defaultColors = new List<string> { "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF" };
+            for (int i = 0; i < defaultColors.Count; i++)
             {
-                Directory.CreateDirectory(directoryPath);
+                var color = defaultColors[i];
+                var code = GetPaletteCode(i);
+                palette[code] = color; // code为key，color为value
             }
-
-            var lines = CustomPaletteColors.Select((color, index) => $"C{index + 1}\t{color.ToUpper()}").ToList();
-            File.WriteAllLines(palettePath, lines);
-
-            SuccessMessage = "自定义调色板保存成功";
         }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"保存调色板失败：{ex.Message}";
-        }
-    }
-
-    private void LoadCustomPalette()
-    {
-        // 加载自定义调色板
-        var palettePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes", "Custom.txt");
-        if (!File.Exists(palettePath))
-        {
-            // 尝试其他可能的路径
-            palettePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "Palettes", "Custom.txt");
-        }
-
-        if (File.Exists(palettePath))
-        {
-            var lines = File.ReadAllLines(palettePath);
-            CustomPaletteColors = lines.Select(line => line.Split('\t')[1].ToUpper()).ToList();
-        }
-        else
-        {
-            // 如果文件不存在，使用默认颜色
-            CustomPaletteColors = new List<string> { "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF" };
-        }
+        return palette;
     }
 
     private async Task LoadPalette()
@@ -390,27 +317,28 @@
             return;
         }
 
-        List<string> currentPalette;
-        if (SelectedPalette == "Custom")
+        Dictionary<string, string> currentPalette = new Dictionary<string, string>();// code, color
+
+        // 查找选中的调色板
+        var selectedPaletteInfo = AllPalettes.FirstOrDefault(p => p.Name == SelectedPalette);
+        if (selectedPaletteInfo != null)
         {
-            currentPalette = CustomPaletteColors;
+            // 加载对应的调色板文件
+            var loadedPalette = LoadPaletteFromFile(selectedPaletteInfo.Path);
+            currentPalette = loadedPalette;
+
         }
         else
         {
-            // 查找选中的调色板
-            var selectedPaletteInfo = AllPalettes.FirstOrDefault(p => p.Name == SelectedPalette);
-            if (selectedPaletteInfo != null)
-            {
-                // 加载对应的调色板文件
-                currentPalette = LoadPaletteFromFile(selectedPaletteInfo.Path);
-            }
-            else
-            {
-                // 默认使用 Mard 调色板
-                currentPalette = PaletteColors;
-            }
+            // 默认使用 Mard 调色板
+            // for (int i = 0; i < PaletteColors.Count; i++)
+            // {
+            //     var color = PaletteColors[i];
+            //     var code = GetPaletteCode(i);
+            //     currentPalette[code] = color;
+            // }
         }
-        
+
         if (currentPalette.Count == 0)
         {
             ErrorMessage = "当前调色板中没有颜色";
@@ -426,11 +354,13 @@
             var palette = new PaletteEntity();
 
             // 填充调色板实体
-            for (int i = 0; i < currentPalette.Count; i++)
+            int index = 0;
+            foreach (var kvp in currentPalette)
             {
-                var colorHex = currentPalette[i];
+                var colorHex = kvp.Value;
                 var color = Vicold.Pindoudou.Entities.Color.FromHex(colorHex);
-                palette.AddColor($"Color{i}", color);
+                palette.AddColor($"Color{index}", color);
+                index++;
             }
 
             // 使用真实的图像数据
@@ -440,16 +370,28 @@
 
             // 使用 PixelArtGenerator 生成像素图
             var pixelData = PixelArtGenerator.GeneratePixelArt(originalWidth, originalHeight, PixelWidth, PixelHeight, originalPixels, palette);
-            
+
             PixelArtData = pixelData;
             SuccessMessage = "像素图生成成功";
-            
+
             // 简单的字符串编码，实际应用中应该使用 JSON 序列化
             var pixelDataString = string.Join(",", PixelArtData);
-            var paletteColorsString = string.Join(",", currentPalette);
+            var paletteColorsString = string.Join(",", currentPalette.Values); // 使用Values获取颜色值
             
-            // 导航到 Counter 页面，并传递参数
-            NavigationManager.NavigateTo($"/counter?width={PixelWidth}&height={PixelHeight}&palette={SelectedPalette}&pixelData={Uri.EscapeDataString(pixelDataString)}&paletteColors={Uri.EscapeDataString(paletteColorsString)}");
+            // 存储到 sessionStorage
+            var navigationData = new {
+                Width = PixelWidth,
+                Height = PixelHeight,
+                Palette = SelectedPalette,
+                PixelData = pixelDataString,
+                PaletteColors = paletteColorsString,
+                CurrentPalette = currentPalette
+            };
+            var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
+            await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", "navigationData", jsonData);
+            
+            // 导航到 Counter 页面
+            NavigationManager.NavigateTo("/counter");
         }
         catch (Exception ex)
         {
@@ -459,5 +401,13 @@
         {
             IsGenerating = false;
         }
+    }
+
+    private string GetPaletteCode(int index)
+    {
+        // 生成类似 A1、A2、B1、B2 的调色板代码
+        char letter = (char)('A' + (index / 10));
+        int number = (index % 10) + 1;
+        return $"{letter}{number}";
     }
 }

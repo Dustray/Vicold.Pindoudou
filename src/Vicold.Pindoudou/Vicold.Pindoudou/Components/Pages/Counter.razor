@@ -16,8 +16,8 @@
                     <div class="compact-color-grid">
                         @foreach (var kvp in PaletteColors)
                         {
-                            var color = kvp.Key;
-                            var code = kvp.Value;
+                            var color = kvp.Value;
+                            var code = kvp.Key;
                             <div 
                                 class="compact-color-item"
                                 @onclick="() => SelectColor(color)"
@@ -51,6 +51,7 @@
                     <label class="form-check-label" for="showCodes">显示代码</label>
                 </div>
                 
+                <button class="btn btn-primary mt-2 mr-2" @onclick="ExportPixelArt">导出图片</button>
                 <button class="btn btn-secondary mt-2" @onclick="GoBack">返回</button>
             </div>
         </div>
@@ -79,7 +80,7 @@
                                                     title="@PixelData[index]" >
                                                     @if (ShowCodes)
                                                     {
-                                                        <div class="color-number-in-pixel">@(PaletteColors.TryGetValue(PixelData[index], out var code) ? code : "")</div>
+                                                        <div class="color-number-in-pixel">@GetCodeByColor(PixelData[index])</div>
                                                     }
                                                 </div>
                                             }
@@ -230,42 +231,99 @@
     private string SelectedColor { get; set; } = "#FFFFFF";
     private bool ShowCodes { get; set; } = true;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // 从 URL 参数中获取数据
-        var uri = new Uri(NavigationManager.Uri);
-        var queryString = uri.Query;
-
-        // 解析参数
-        Width = GetQueryParameter(queryString, "width", 20);
-        Height = GetQueryParameter(queryString, "height", 20);
-        Palette = GetQueryParameter(queryString, "palette", "Mard");
-
-        // 解析像素数据
-        var pixelDataString = GetQueryParameter(queryString, "pixelData", "");
-        if (!string.IsNullOrEmpty(pixelDataString))
+        // 从 sessionStorage 中获取数据
+        var jsonData = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "navigationData");
+        
+        if (!string.IsNullOrEmpty(jsonData))
         {
-            PixelData = pixelDataString.Split(',');
-        }
-
-        // 解析调色板颜色
-        var paletteColorsString = GetQueryParameter(queryString, "paletteColors", "");
-        if (!string.IsNullOrEmpty(paletteColorsString))
-        {
-            var colors = paletteColorsString.Split(',');
-            for (int i = 0; i < colors.Length; i++)
+            try
             {
-                var color = colors[i];
-                var code = GetPaletteCode(i);
-                PaletteColors[color] = code;
+                // 使用具体的类型而不是dynamic
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                var navigationData = System.Text.Json.JsonSerializer.Deserialize<NavigationData>(jsonData, options);
+                
+                if (navigationData != null)
+                {
+                    // 解析参数
+                    Width = navigationData.Width;
+                    Height = navigationData.Height;
+                    Palette = navigationData.Palette;
+                    
+                    // 解析像素数据
+                    var pixelDataString = navigationData.PixelData;
+                    if (!string.IsNullOrEmpty(pixelDataString))
+                    {
+                        PixelData = pixelDataString.Split(',');
+                    }
+                    
+                    // 解析调色板颜色
+                    var paletteColorsString = navigationData.CurrentPalette;
+                    foreach (var color in paletteColorsString)
+                    {
+                        PaletteColors[color.Key] = color.Value; // code为key，color为value
+                    }
+                    
+                    // 设置默认选择的颜色
+                    if (PaletteColors.Count > 0)
+                    {
+                        SelectedColor = PaletteColors.First().Value;
+                    }
+                }
+                
+                // 清除 sessionStorage 中的数据
+                await JSRuntime.InvokeVoidAsync("sessionStorage.removeItem", "navigationData");
+            }
+            catch (Exception ex)
+            {
+                // 错误处理
+                Console.WriteLine($"Error parsing navigation data: {ex.Message}");
+                // 如果解析失败，使用默认值
+                Width = 20;
+                Height = 20;
+                Palette = "Mard";
+                PaletteColors = new Dictionary<string, string>();
+                SelectedColor = "#FFFFFF";
             }
         }
-
-        // 设置默认选择的颜色
-        if (PaletteColors.Count > 0)
+        else
         {
-            SelectedColor = PaletteColors.First().Key;
+            // 如果没有数据，使用默认值
+            Width = 20;
+            Height = 20;
+            Palette = "Mard";
+            PaletteColors = new Dictionary<string, string>();
+            SelectedColor = "#FFFFFF";
         }
+    }
+    
+    // 导航数据模型
+    private class NavigationData
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public string Palette { get; set; }
+        public string PixelData { get; set; }
+        public string PaletteColors { get; set; }
+        public Dictionary<string, string> CurrentPalette { get; set; }
+    }
+    
+    // 根据颜色值获取对应的代码
+    private string GetCodeByColor(string color)
+    {
+        foreach (var kvp in PaletteColors)
+        {
+            if (kvp.Value == color)
+            {
+                return kvp.Key;
+            }
+        }
+        return string.Empty;
     }
     
     private int GetQueryParameter(string queryString, string parameterName, int defaultValue)
@@ -322,6 +380,14 @@
     private void GoBack()
     {
         NavigationManager.NavigateTo("/");
+    }
+    
+    private async Task ExportPixelArt()
+    {
+        if (PixelData != null && PixelData.Length > 0)
+        {
+            await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, PixelData, PaletteColors, ShowCodes);
+        }
     }
     
     private string GetPaletteCode(int index)
@@ -459,5 +525,150 @@
             // 非首次加载，恢复之前的状态
             updateTransform();
         }
+    };
+    
+    // 导出像素图为图片
+    window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors, showCodes) {
+        // 配置参数
+        const pixelSize = 40; // 每个像素的大小，增大一倍以提高清晰度
+        const padding = 40; // 留白大小
+        const codeFontSize = 16; // 像素中代码字号
+        const paletteTitleFontSize = 22; // 调色板标题字号
+        const paletteCodeFontSize = 12; // 调色板项中代码字号
+        const paletteCountFontSize = 12; // 调色板项中数量字号
+        const paletteItemSize = 30; // 调色板项大小
+        
+        // 统计每个颜色的使用数量
+        const colorCount = {};
+        for (let i = 0; i < pixelData.length; i++) {
+            const color = pixelData[i];
+            if (colorCount[color]) {
+                colorCount[color]++;
+            } else {
+                colorCount[color] = 1;
+            }
+        }
+        
+        // 计算Canvas尺寸
+        const canvasWidth = width * pixelSize + padding * 2;
+        const paletteColorsArray = Object.entries(paletteColors);
+        const maxPerRow = Math.floor((canvasWidth - padding * 2) / (paletteItemSize + 10));
+        const paletteHeight = Math.ceil(paletteColorsArray.length / maxPerRow) * (paletteItemSize + 25) + padding * 2;
+        const canvasHeight = height * pixelSize + padding * 2 + paletteHeight;
+        
+        // 创建Canvas元素
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const ctx = canvas.getContext('2d');
+        
+        // 填充背景
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        // 绘制像素
+        const pixelStartX = padding;
+        const pixelStartY = padding;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = y * width + x;
+                const color = pixelData[index];
+                const px = pixelStartX + x * pixelSize;
+                const py = pixelStartY + y * pixelSize;
+                
+                // 绘制像素背景
+                ctx.fillStyle = color;
+                ctx.fillRect(px, py, pixelSize, pixelSize);
+                
+                // 绘制像素边框
+                ctx.strokeStyle = '#eee';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(px, py, pixelSize, pixelSize);
+                
+                // 如果需要显示代码
+                if (showCodes) {
+                    // 查找对应的代码
+                    let code = '';
+                    for (const [codeValue,colorKey] of Object.entries(paletteColors)) {
+                        if (colorKey === color) {
+                            code = codeValue;
+                            break;
+                        }
+                    }
+                    
+                    // 绘制代码
+                    if (code) {
+                        ctx.fillStyle = '#333';
+                        ctx.font = codeFontSize + 'px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(code, px + pixelSize / 2, py + pixelSize / 2);
+                    }
+                }
+            }
+        }
+        
+        // 绘制调色板示例
+        const paletteStartY = pixelStartY + height * pixelSize + padding;
+        const paletteStartX = padding;
+        
+        // 绘制调色板标题
+        ctx.fillStyle = '#333';
+        ctx.font = paletteTitleFontSize + 'px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('调色板', canvasWidth / 2, paletteStartY + 20);
+        
+        // 绘制调色板项
+        let paletteX = paletteStartX;
+        let paletteY = paletteStartY + 40;
+        let count = 0;
+        
+        for (const [code, color] of paletteColorsArray) {
+            // 计算每个调色板项的宽度，使它们从左到右占满
+            const colorCountValue = colorCount[color] || 0;
+            if (colorCountValue == 0) {
+                continue;    
+            }
+            const itemWidth = (canvasWidth - padding * 2 - (maxPerRow - 1) * 10) / maxPerRow;
+            
+            // 绘制色块
+            ctx.fillStyle = color;
+            ctx.fillRect(paletteX, paletteY, itemWidth, paletteItemSize);
+            
+            // 绘制色块边框
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(paletteX, paletteY, itemWidth, paletteItemSize);
+            
+            // 绘制代码
+            ctx.fillStyle = '#333';
+            ctx.font = paletteCodeFontSize + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(code, paletteX + itemWidth / 2, paletteY + paletteItemSize + 2);
+            
+            // 绘制数量
+            ctx.fillStyle = '#666';
+            ctx.font = paletteCountFontSize + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(colorCountValue + '个', paletteX + itemWidth / 2, paletteY + paletteItemSize + 12);
+            
+            // 更新位置
+            count++;
+            if (count % maxPerRow === 0) {
+                paletteX = paletteStartX;
+                paletteY += paletteItemSize + 25;
+            } else {
+                paletteX += itemWidth + 10;
+            }
+        }
+        
+        // 转换为图片并下载
+        const dataURL = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = 'pixel-art.png';
+        link.href = dataURL;
+        link.click();
     };
 </script>
