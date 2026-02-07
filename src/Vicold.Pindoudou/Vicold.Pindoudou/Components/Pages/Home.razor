@@ -173,8 +173,8 @@
 </style>
 
 @code {
-    private int PixelWidth { get; set; } = 20;
-    private int PixelHeight { get; set; } = 20;
+    private int PixelWidth { get; set; } = 50;
+    private int PixelHeight { get; set; } = 50;
     private string SelectedPalette { get; set; } = "Mard";
     private string? OriginalImageUrl { get; set; }
     private string[]? PixelArtData { get; set; }
@@ -303,41 +303,46 @@
             return;
         }
     }
-    
+
     private async Task GeneratePixelArt()
     {
+
         ErrorMessage = null;
         SuccessMessage = null;
-        
+
+        if (OriginalPixels is null)
+        {
+            ErrorMessage = $"生成失败：原始图像出错";
+            return;
+        }
+
         if (uploadedFile == null)
         {
             ErrorMessage = "请先上传图片";
             return;
         }
-        
+
         if (PixelWidth <= 0 || PixelHeight <= 0)
         {
             ErrorMessage = "请设置有效的像素大小";
             return;
         }
-        
+
         var currentPalette = SelectedPalette == "Custom" ? CustomPaletteColors : PaletteColors;
         if (currentPalette.Count == 0)
         {
             ErrorMessage = "当前调色板中没有颜色";
             return;
         }
-        
+
         IsGenerating = true;
-        
+
         try
         {
-            // 模拟生成过程的延迟
-            await Task.Delay(1000);
-            
+
             // 创建调色板实体
             var palette = new PaletteEntity();
-            
+
             // 填充调色板实体
             for (int i = 0; i < currentPalette.Count; i++)
             {
@@ -345,12 +350,12 @@
                 var color = Vicold.Pindoudou.Entities.Color.FromHex(colorHex);
                 palette.AddColor($"Color{i}", color);
             }
-            
+
             // 使用真实的图像数据
             var originalWidth = OriginalWidth > 0 ? OriginalWidth : PixelWidth * 10; // 使用真实宽度或默认值
             var originalHeight = OriginalHeight > 0 ? OriginalHeight : PixelHeight * 10; // 使用真实高度或默认值
-            var originalPixels = OriginalPixels ?? ImageUtil.GenerateSimulatedImageData(originalWidth, originalHeight); // 使用真实像素数据或模拟数据
-            
+            var originalPixels = OriginalPixels; // 使用真实像素数据或模拟数据
+
             // 使用 PixelArtGenerator 生成像素图
             var pixelData = PixelArtGenerator.GeneratePixelArt(originalWidth, originalHeight, PixelWidth, PixelHeight, originalPixels, palette);
             
