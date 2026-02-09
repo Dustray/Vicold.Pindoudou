@@ -38,7 +38,9 @@ namespace Vicold.Pindoudou.Utils
                 for (int x = minOrigX; x < maxOrigX; x++)
                 {
                     var color = originalPixels[y * originalWidth + x];
-                    colors.Add(color);
+                    if(color.A > 0){
+                        colors.Add(color);
+                    }
                 }
             }
             return colors;
@@ -53,7 +55,7 @@ namespace Vicold.Pindoudou.Utils
         {
             if (colors == null || colors.Count == 0)
             {
-                return new Vicold.Pindoudou.Entities.Color(255, 255, 255); // 默认白色
+                return new Vicold.Pindoudou.Entities.Color(255, 255, 255, 0); // 默认透明
             }
             
             int r = 0, g = 0, b = 0, a = 0;

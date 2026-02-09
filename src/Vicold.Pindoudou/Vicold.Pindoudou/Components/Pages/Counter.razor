@@ -85,7 +85,12 @@
                                                     title="@PixelData[index]" >
                                                     @if (ShowCodes)
                                                     {
-                                                        <div class="color-number-in-pixel">@GetCodeByColor(PixelData[index])</div>
+                                                        var code = GetCodeByColor(PixelData[index]);
+                                                        if (!string.IsNullOrEmpty(code))
+                                                        {
+                                                            var textColor = GetContrastTextColor(PixelData[index]);
+                                                            <div class="color-number-in-pixel" style="color: @textColor">@(code)</div>
+                                                        }
                                                     }
                                                 </div>
                                             }
@@ -206,7 +211,6 @@
         color: #333;
         text-align: center;
         width: 100%;
-        text-shadow: 0.5px 0.5px 0px rgba(255, 255, 255, 0.8);
         font-weight: bold;
         line-height: 1;
         margin: 0;
@@ -342,6 +346,55 @@
         return string.Empty;
     }
     
+    // 根据背景颜色获取对比度高的文本颜色（黑色或白色）
+    private string GetContrastTextColor(string color)
+    {
+        // 解析颜色值
+        int r, g, b;
+        
+        if (color.StartsWith("#"))
+        {
+            color = color.Substring(1);
+        }
+        
+        if (color.Length == 6)
+        {
+            // #RRGGBB 格式
+            r = Convert.ToInt32(color.Substring(0, 2), 16);
+            g = Convert.ToInt32(color.Substring(2, 2), 16);
+            b = Convert.ToInt32(color.Substring(4, 2), 16);
+        }
+        else if (color.Length == 8)
+        {
+            // #AARRGGBB 或 #RRGGBBAA 格式
+            if (color.EndsWith("00", StringComparison.OrdinalIgnoreCase))
+            {
+                // #RRGGBBAA 格式
+                r = Convert.ToInt32(color.Substring(0, 2), 16);
+                g = Convert.ToInt32(color.Substring(2, 2), 16);
+                b = Convert.ToInt32(color.Substring(4, 2), 16);
+            }
+            else
+            {
+                // #AARRGGBB 格式
+                r = Convert.ToInt32(color.Substring(2, 2), 16);
+                g = Convert.ToInt32(color.Substring(4, 2), 16);
+                b = Convert.ToInt32(color.Substring(6, 2), 16);
+            }
+        }
+        else
+        {
+            // 默认黑色
+            return "#000000";
+        }
+        
+        // 计算亮度（使用相对亮度公式）
+        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        
+        // 如果亮度大于0.5，使用黑色文本；否则使用白色文本
+        return luminance > 0.5 ? "#000000" : "#FFFFFF";
+    }
+    
     private int GetQueryParameter(string queryString, string parameterName, int defaultValue)
     {
         var parameter = GetQueryParameter(queryString, parameterName, string.Empty);
@@ -432,6 +485,48 @@
         translateX: 0,
         translateY: 0
     };
+    
+    // 根据背景颜色获取对比度高的文本颜色（黑色或白色）
+    function getContrastTextColor(color) {
+        // 解析颜色值
+        let r, g, b;
+        
+        if (color.startsWith('#')) {
+            color = color.substring(1);
+        }
+        
+        if (color.length === 6) {
+            // #RRGGBB 格式
+            r = parseInt(color.substring(0, 2), 16);
+            g = parseInt(color.substring(2, 4), 16);
+            b = parseInt(color.substring(4, 6), 16);
+        }
+        else if (color.length === 9) {
+            // #AARRGGBB 或 #RRGGBBAA 格式
+            if (color.endsWith('00')) {
+                // #RRGGBBAA 格式
+                r = parseInt(color.substring(0, 2), 16);
+                g = parseInt(color.substring(2, 4), 16);
+                b = parseInt(color.substring(4, 6), 16);
+            }
+            else {
+                // #AARRGGBB 格式
+                r = parseInt(color.substring(2, 4), 16);
+                g = parseInt(color.substring(4, 6), 16);
+                b = parseInt(color.substring(6, 8), 16);
+            }
+        }
+        else {
+            // 默认黑色
+            return '#000000';
+        }
+        
+        // 计算亮度（使用相对亮度公式）
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        
+        // 如果亮度大于0.5，使用黑色文本；否则使用白色文本
+        return luminance > 0.5 ? '#000000' : '#FFFFFF';
+    }
     
     // 全局函数，供 Blazor 调用
     window.initializeZoomAndPan = function() {
@@ -666,7 +761,9 @@
                         
                         // 绘制代码
                         if (code) {
-                            ctx.fillStyle = '#333';
+                            // 根据背景颜色计算文本颜色
+                            const textColor = getContrastTextColor(color);
+                            ctx.fillStyle = textColor;
                             ctx.font = codeFontSize + 'px Arial';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
