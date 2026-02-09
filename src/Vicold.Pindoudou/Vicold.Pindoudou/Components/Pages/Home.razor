@@ -4,6 +4,7 @@
 @using System
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
+@using Microsoft.Maui.Storage
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
@@ -182,9 +183,11 @@
     {
         AllPalettes.Clear();
 
-        // 使用项目的固定路径
+        // 使用跨平台兼容的应用数据目录
+        string appDataDir = FileSystem.AppDataDirectory;
+        
         // 加载 Palettes 文件夹中的系统调色板
-        string systemPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes");
+        string systemPalettesPath = Path.Combine(appDataDir, "Data", "Palettes");
         if (Directory.Exists(systemPalettesPath))
         {
             var systemPalettes = Directory.GetFiles(systemPalettesPath, "*.txt")
@@ -197,9 +200,27 @@
 
             AllPalettes.AddRange(systemPalettes);
         }
+        else
+        {
+            // 如果AppData目录中不存在，尝试使用应用程序基础目录（用于Windows调试）
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            systemPalettesPath = Path.Combine(baseDir, "Data", "Palettes");
+            if (Directory.Exists(systemPalettesPath))
+            {
+                var systemPalettes = Directory.GetFiles(systemPalettesPath, "*.txt")
+                    .Select(file => new PaletteInfo
+                    {
+                        Name = Path.GetFileNameWithoutExtension(file),
+                        Path = file,
+                        Type = "System"
+                    });
+
+                AllPalettes.AddRange(systemPalettes);
+            }
+        }
 
         // 加载 UserPalettes 文件夹中的用户调色板
-        string userPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "UserPalettes");
+        string userPalettesPath = Path.Combine(appDataDir, "Data", "UserPalettes");
         if (Directory.Exists(userPalettesPath))
         {
             var userPalettes = Directory.GetFiles(userPalettesPath, "*.txt")
@@ -211,6 +232,24 @@
                 });
 
             AllPalettes.AddRange(userPalettes);
+        }
+        else
+        {
+            // 如果AppData目录中不存在，尝试使用应用程序基础目录（用于Windows调试）
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            userPalettesPath = Path.Combine(baseDir, "Data", "UserPalettes");
+            if (Directory.Exists(userPalettesPath))
+            {
+                var userPalettes = Directory.GetFiles(userPalettesPath, "*.txt")
+                    .Select(file => new PaletteInfo
+                    {
+                        Name = Path.GetFileNameWithoutExtension(file),
+                        Path = file,
+                        Type = "User"
+                    });
+
+                AllPalettes.AddRange(userPalettes);
+            }
         }
     }
 
@@ -246,11 +285,20 @@
 
     private async Task LoadPalette()
     {
-        // 加载 Mard 调色板
-        var palettePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes", "Mard.txt");
+        // 使用跨平台兼容的应用数据目录
+        string appDataDir = FileSystem.AppDataDirectory;
+        var palettePath = Path.Combine(appDataDir, "Data", "Palettes", "Mard.txt");
+        
         if (!File.Exists(palettePath))
         {
-            // 尝试其他可能的路径
+            // 尝试使用应用程序基础目录（用于Windows调试）
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            palettePath = Path.Combine(baseDir, "Data", "Palettes", "Mard.txt");
+        }
+
+        if (!File.Exists(palettePath))
+        {
+            // 尝试使用当前工作目录
             palettePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "Palettes", "Mard.txt");
         }
 

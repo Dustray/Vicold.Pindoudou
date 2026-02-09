@@ -89,7 +89,9 @@
                                                         if (!string.IsNullOrEmpty(code))
                                                         {
                                                             var textColor = GetContrastTextColor(PixelData[index]);
-                                                            <div class="color-number-in-pixel" style="color: @textColor">@(code)</div>
+                                                            <div class="color-number-in-pixel" style="color: @textColor">
+                                                                @(code)
+                                                            </div>
                                                         }
                                                     }
                                                 </div>

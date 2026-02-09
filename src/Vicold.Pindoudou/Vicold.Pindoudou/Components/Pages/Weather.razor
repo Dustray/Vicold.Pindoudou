@@ -1,6 +1,7 @@
 @page "/weather"
 @using System.IO
 @using System
+@using Microsoft.Maui.Storage
 
 <h1>调色板管理工具</h1>
 
@@ -124,9 +125,20 @@
     {
         try
         {
-            var palettePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes", "Mard.txt");
+            // 使用跨平台兼容的应用数据目录
+            string appDataDir = FileSystem.AppDataDirectory;
+            var palettePath = Path.Combine(appDataDir, "Data", "Palettes", "Mard.txt");
+            
             if (!File.Exists(palettePath))
             {
+                // 尝试使用应用程序基础目录（用于Windows调试）
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                palettePath = Path.Combine(baseDir, "Data", "Palettes", "Mard.txt");
+            }
+
+            if (!File.Exists(palettePath))
+            {
+                // 尝试使用当前工作目录
                 palettePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "Palettes", "Mard.txt");
             }
 
@@ -221,8 +233,9 @@
         
         try
         {
-            // 使用项目的固定路径
-            string userPalettesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "UserPalettes");
+            // 使用跨平台兼容的应用数据目录
+            string appDataDir = FileSystem.AppDataDirectory;
+            string userPalettesPath = Path.Combine(appDataDir, "Data", "UserPalettes");
             
             if (!Directory.Exists(userPalettesPath))
             {
@@ -253,9 +266,11 @@
 
     private void LoadUserPalettes()
     {
-        // 使用项目的固定路径
-        string projectPath = @"d:\Vicold\Vicold.Pindoudou\src\Vicold.Pindoudou\Vicold.Pindoudou";
-        string userPalettesPath = Path.Combine(projectPath, "Data", "UserPalettes");
+        UserPalettes.Clear();
+        
+        // 使用跨平台兼容的应用数据目录
+        string appDataDir = FileSystem.AppDataDirectory;
+        string userPalettesPath = Path.Combine(appDataDir, "Data", "UserPalettes");
         
         if (Directory.Exists(userPalettesPath))
         {
@@ -263,6 +278,20 @@
                 .Select(file => Path.GetFileNameWithoutExtension(file))
                 .Where(name => !string.IsNullOrEmpty(name))
                 .ToList();
+        }
+        else
+        {
+            // 尝试使用应用程序基础目录（用于Windows调试）
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            userPalettesPath = Path.Combine(baseDir, "Data", "UserPalettes");
+            
+            if (Directory.Exists(userPalettesPath))
+            {
+                UserPalettes = Directory.GetFiles(userPalettesPath, "*.txt")
+                    .Select(file => Path.GetFileNameWithoutExtension(file))
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .ToList();
+            }
         }
     }
 
@@ -278,16 +307,36 @@
             if (paletteName == "Mard")
             {
                 // 加载默认 Mard 调色板
-                palettePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Palettes", "Mard.txt");
+                // 使用跨平台兼容的应用数据目录
+                string appDataDir = FileSystem.AppDataDirectory;
+                palettePath = Path.Combine(appDataDir, "Data", "Palettes", "Mard.txt");
+                
                 if (!File.Exists(palettePath))
                 {
+                    // 尝试使用应用程序基础目录（用于Windows调试）
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    palettePath = Path.Combine(baseDir, "Data", "Palettes", "Mard.txt");
+                }
+
+                if (!File.Exists(palettePath))
+                {
+                    // 尝试使用当前工作目录
                     palettePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "Palettes", "Mard.txt");
                 }
             }
             else
             {
                 // 加载用户自定义调色板
-                palettePath = Path.Combine(GetUserPalettesPath(), $"{paletteName}.txt");
+                // 使用跨平台兼容的应用数据目录
+                string appDataDir = FileSystem.AppDataDirectory;
+                palettePath = Path.Combine(appDataDir, "Data", "UserPalettes", $"{paletteName}.txt");
+                
+                if (!File.Exists(palettePath))
+                {
+                    // 尝试使用应用程序基础目录（用于Windows调试）
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    palettePath = Path.Combine(baseDir, "Data", "UserPalettes", $"{paletteName}.txt");
+                }
             }
 
             if (File.Exists(palettePath))
@@ -351,9 +400,9 @@
         
         try
         {
-            // 使用项目的固定路径
-            string projectPath = @"d:\Vicold\Vicold.Pindoudou\src\Vicold.Pindoudou\Vicold.Pindoudou";
-            string userPalettesPath = Path.Combine(projectPath, "Data", "UserPalettes");
+            // 使用跨平台兼容的应用数据目录
+            string appDataDir = FileSystem.AppDataDirectory;
+            string userPalettesPath = Path.Combine(appDataDir, "Data", "UserPalettes");
             
             if (!Directory.Exists(userPalettesPath))
             {
@@ -380,11 +429,20 @@
         
         try
         {
-            // 使用项目的固定路径
-            string projectPath = @"d:\Vicold\Vicold.Pindoudou\src\Vicold.Pindoudou\Vicold.Pindoudou";
-            string userPalettesPath = Path.Combine(projectPath, "Data", "UserPalettes");
+            // 使用跨平台兼容的应用数据目录
+            string appDataDir = FileSystem.AppDataDirectory;
+            string userPalettesPath = Path.Combine(appDataDir, "Data", "UserPalettes");
             
             var palettePath = Path.Combine(userPalettesPath, $"{paletteName}.txt");
+            
+            if (!File.Exists(palettePath))
+            {
+                // 尝试使用应用程序基础目录（用于Windows调试）
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                userPalettesPath = Path.Combine(baseDir, "Data", "UserPalettes");
+                palettePath = Path.Combine(userPalettesPath, $"{paletteName}.txt");
+            }
+            
             if (File.Exists(palettePath))
             {
                 File.Delete(palettePath);

@@ -58,11 +58,16 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Data\Palettes\Mard.txt" />
+      <MauiAsset Include="Data\Palettes\**" LogicalName="Data\Palettes\%(RecursiveDir)%(Filename)%(Extension)" />
+      <MauiAsset Include="Data\UserPalettes\**" LogicalName="Data\UserPalettes\%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="Data\Palettes\Mard.txt">
+      <MauiAsset Remove="Data\Palettes\Mard53.txt" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="Data\Palettes\Mard53.txt">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>
