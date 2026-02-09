@@ -3,102 +3,403 @@
 @using System
 @using Microsoft.Maui.Storage
 
-<h1>调色板管理工具</h1>
+<div class="app-container">
+    <header class="app-header">
+        <h1>拼豆图纸设计工具</h1>
+        <p class="app-subtitle">管理和自定义您的调色板</p>
+    </header>
 
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <h2>现有调色板</h2>
-            <div class="list-group">
-                <button class="list-group-item list-group-item-action @GetActiveClass("Mard")" @onclick="LoadMardPalette">
-                    Mard (默认)
-                </button>
-                @foreach (var userPalette in UserPalettes)
-                {
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <button class="btn btn-link text-left flex-grow-1 @GetBoldClass(userPalette)" @onclick="() => LoadUserPalette(userPalette)">
-                            @userPalette
-                        </button>
-                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteUserPalette(userPalette)" disabled="@IsSelected(userPalette)">
-                            删除
-                        </button>
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h2>现有调色板</h2>
                     </div>
-                }
-            </div>
-        </div>
-        <div class="col-md-6">
-            <h2>基于当前调色板创建新调色板</h2>
-            <div class="mb-3">
-                <label for="newPaletteName" class="form-label">新调色板名称</label>
-                <input type="text" class="form-control" id="newPaletteName" @bind="NewPaletteName" placeholder="输入调色板名称">
-                <div class="text-muted text-xs mt-1">当前值: '@NewPaletteName'</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h2>从默认 Mard 调色板选择颜色</h2>
-            <div class="mb-3">
-                <label class="form-label">选择颜色 (可多选)</label>
-                <div class="d-flex flex-wrap gap-1 p-3 border rounded">
-                    @foreach (var item in MardPaletteColors)
-                    {
-                        <div class="color-item d-flex flex-column align-items-center" style="width: 35px; margin: 2px; cursor: pointer;" @onclick="() => ToggleColorSelection(item.Color)">
-                        <div class="color-block position-relative" style="width: 30px; height: 30px; background-color: @item.Color; border: 1px solid #ddd; border-radius: 3px;">
-                            @if (SelectedColors.Contains(item.Color))
+                    <div class="card-body">
+                        <div class="list-group custom-list-group">
+                            <button class="list-group-item list-group-item-action @GetActiveClass("Mard")" @onclick="LoadMardPalette">
+                                Mard (默认)
+                            </button>
+                            @foreach (var userPalette in UserPalettes)
                             {
-                                <div class="position-absolute top-0 right-0 bg-white text-black flex items-center justify-center rounded-full border border-gray-300" style="width: 14px; height: 14px; font-size: 10px;">
-                                    ✓
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <button class="btn btn-link text-left flex-grow-1 @GetBoldClass(userPalette)" @onclick="() => LoadUserPalette(userPalette)">
+                                        @userPalette
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteUserPalette(userPalette)" disabled="@IsSelected(userPalette)">
+                                        删除
+                                    </button>
                                 </div>
                             }
                         </div>
-                        <span class="text-xs mt-1">@item.Code</span>
                     </div>
-                    }
                 </div>
             </div>
-            <div class="mb-3">
-                <label for="colorCodesInput" class="form-label">输入颜色代码 (如: A1 A4 A15)</label>
-                <input type="text" class="form-control" id="colorCodesInput" @bind="ColorCodesInput" placeholder="输入颜色代码，用空格分隔">
-            </div>
-            <button class="btn btn-primary" @onclick="SelectColorsByCodes">
-                一键选中颜色
-            </button>
-            <button class="btn btn-success ml-2" @onclick="async () => await CreatePaletteFromSelection()">
-                基于选择的颜色创建新调色板
-            </button>
-            <span class="text-muted ml-2">已选择 @SelectedColors.Count 个颜色</span>
-            <div class="text-muted text-xs mt-1">NewPaletteName: '@NewPaletteName', SelectedColors.Count: @SelectedColors.Count</div>
-        </div>
-    </div>
-
-
-
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <h2>调色板预览</h2>
-            <div class="palette-preview d-flex flex-wrap gap-0">
-                @foreach (var color in PaletteColors)
-                {
-                    <div class="preview-color" style="width: 15px; height: 15px; background-color: @color; border: 1px solid #eee;"></div>
-                }
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h2>创建新调色板</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="newPaletteName" class="form-label">新调色板名称</label>
+                            <input type="text" class="form-control" id="newPaletteName" @bind="NewPaletteName" placeholder="输入调色板名称">
+                            <div class="text-muted text-xs mt-1">当前值: '@NewPaletteName'</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h2>从默认 Mard 调色板选择颜色</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label class="form-label">选择颜色 (可多选)</label>
+                            <div class="color-selection-container p-4 border rounded-lg">
+                                @foreach (var item in MardPaletteColors)
+                                {
+                                    <div class="color-item d-flex flex-column align-items-center" @onclick="() => ToggleColorSelection(item.Color)">
+                                        <div class="color-block position-relative">
+                                            <div class="color-swatch" style="background-color: @item.Color"></div>
+                                            @if (SelectedColors.Contains(item.Color))
+                                            {
+                                                <div class="color-checkmark position-absolute top-0 right-0">
+                                                    ✓
+                                                </div>
+                                            }
+                                        </div>
+                                        <span class="color-code">@item.Code</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label for="colorCodesInput" class="form-label">输入颜色代码 (如: A1 A4 A15)</label>
+                            <input type="text" class="form-control" id="colorCodesInput" @bind="ColorCodesInput" placeholder="输入颜色代码，用空格分隔">
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-primary" @onclick="SelectColorsByCodes">
+                                一键选中颜色
+                            </button>
+                            <button class="btn btn-success" @onclick="async () => await CreatePaletteFromSelection()">
+                                基于选择的颜色创建新调色板
+                            </button>
+                            <span class="text-muted align-self-center">已选择 @SelectedColors.Count 个颜色</span>
+                        </div>
+                        <div class="text-muted text-xs mt-2">NewPaletteName: '@NewPaletteName', SelectedColors.Count: @SelectedColors.Count</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h2>调色板预览</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="palette-preview">
+                            @foreach (var color in PaletteColors)
+                            {
+                                <div class="preview-color" style="background-color: @color"></div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 消息提示 -->
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="alert alert-success mt-4">@SuccessMessage</div>
+        }
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger mt-4">@ErrorMessage</div>
+        }
     </div>
 </div>
 
 <style>
-    .color-item:hover {
-        transform: scale(1.05);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    /* 全局样式 */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f7fa;
+        color: #333;
     }
+
+    /* 应用容器 */
+    .app-container {
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    /* 头部样式 */
+    .app-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 0 15px;
+    }
+
+    .app-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+
+    .app-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    /* 卡片样式 */
+    .card {
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+
+    /* 列表组样式 */
+    .custom-list-group {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .list-group-item {
+        transition: all 0.3s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* 颜色选择容器 */
+    .color-selection-container {
+        background-color: #f8f9fa;
+        min-height: 200px;
+        max-height: 400px;
+        overflow-y: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-start;
+        align-content: flex-start;
+    }
+
+    /* 颜色项样式 */
+    .color-item {
+        width: 50px;
+        margin: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .color-item:hover {
+        transform: scale(1.1);
+        z-index: 1;
+    }
+
+    /* 颜色块样式 */
+    .color-block {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .color-swatch {
+        width: 100%;
+        height: 100%;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+    }
+
+    /* 颜色选择标记 */
+    .color-checkmark {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        background-color: #28a745;
+        color: white;
+        border-radius: 0 6px 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 颜色代码样式 */
+    .color-code {
+        font-size: 11px;
+        color: #666;
+        text-align: center;
+        margin-top: 4px;
+        font-weight: 500;
+    }
+
+    /* 调色板预览样式 */
     .palette-preview {
         max-width: 100%;
         overflow-x: auto;
-        padding: 10px;
-        border: 1px solid #eee;
-        border-radius: 4px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        justify-content: flex-start;
+    }
+
+    .preview-color {
+        width: 20px;
+        height: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 3px;
+        transition: transform 0.2s ease;
+    }
+
+    .preview-color:hover {
+        transform: scale(1.1);
+        z-index: 1;
+    }
+
+    /* 表单元素样式 */
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    /* 按钮样式 */
+    .btn {
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-success {
+        font-weight: 600;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .btn-danger {
+        font-weight: 600;
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+    }
+
+    /* 消息提示样式 */
+    .alert {
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 15px;
+        animation: fadeIn 0.5s ease;
+    }
+
+    /* 动画效果 */
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .app-header h1 {
+            font-size: 2rem;
+        }
+
+        .app-subtitle {
+            font-size: 1rem;
+        }
+
+        .app-container {
+            padding: 10px 0;
+        }
+
+        .app-header {
+            margin: 0 10px;
+            padding: 15px;
+        }
+
+        .col-md-6 {
+            margin-bottom: 20px;
+        }
+
+        .color-selection-container {
+            gap: 8px;
+        }
+
+        .color-item {
+            width: 45px;
+            margin: 4px;
+        }
+
+        .color-block {
+            width: 36px;
+            height: 36px;
+        }
     }
 </style>
 

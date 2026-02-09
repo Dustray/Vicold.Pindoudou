@@ -8,113 +8,231 @@
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
-<h1>拼豆图纸设计工具</h1>
+<div class="app-container">
+    <header class="app-header">
+        <h1>拼豆图纸设计工具</h1>
+        <p class="app-subtitle">将图片转换为精美的拼豆像素艺术</p>
+    </header>
 
-<div class="container">
-    <div class="row">
-        <!-- 左侧控制面板 -->
-        <div class="col-md-4">
-            <h3>设置</h3>
-
-            <!-- 图片上传 -->
-            <div class="mb-3">
-                <label class="form-label">上传图片</label>
-                <InputFile OnChange="LoadImage" accept=".jpg,.jpeg,.png,.gif" />
-            </div>
-
-            <!-- 像素大小设置 -->
-            <div class="mb-3">
-                <label class="form-label">像素宽度</label>
-                <input type="number" class="form-control" @bind="PixelWidth" min="1" max="100" />
-            </div>
-            <div class="mb-3">
-                <label class="form-label">像素高度</label>
-                <input type="number" class="form-control" @bind="PixelHeight" min="1" max="100" />
-            </div>
-
-            <!-- 调色板选择 -->
-            <div class="mb-3">
-                <label class="form-label">调色板</label>
-                <select class="form-control" @bind="SelectedPalette">
-                    @foreach (var palette in AllPalettes)
-                    {
-                        <option value="@palette.Name">@palette.Name (@(palette.Type == "System" ? "标准" : "自定义"))</option>
-                    }
-                </select>
-            </div>
-
-            <!-- 生成按钮 -->
-            <button class="btn btn-primary" @onclick="GeneratePixelArt" disabled="@IsGenerating">
-                @if (IsGenerating)
-                {
-                    <span>生成中...</span>
-                }
-                else
-                {
-                    <span>生成像素图</span>
-                }
-            </button>
-
-            <!-- 错误消息 -->
-            @if (!string.IsNullOrEmpty(ErrorMessage))
-            {
-                <div class="alert alert-danger mt-2">@ErrorMessage</div>
-            }
-
-            <!-- 成功消息 -->
-            @if (!string.IsNullOrEmpty(SuccessMessage))
-            {
-                <div class="alert alert-success mt-2">@SuccessMessage</div>
-            }
-        </div>
-
-        <!-- 右侧预览区域 -->
-        <div class="col-md-8">
-            <h3>预览</h3>
-            <div class="preview-container">
-                @if (PixelArtData != null)
-                {
-                    <div class="pixel-art" style="display: inline-block;">
-                        @for (int y = 0; y < PixelHeight; y++)
-                        {
-                            <div class="pixel-row">
-                                @for (int x = 0; x < PixelWidth; x++)
-                                {
-                                    var index = y * PixelWidth + x;
-                                    if (index < PixelArtData.Length)
-                                    {
-                                        var color = PixelArtData[index];
-                                        <div class="pixel" style="background-color: @color;"></div>
-                                    }
-                                }
+    <div class="container mt-4">
+        <div class="row">
+            <!-- 左侧控制面板 -->
+            <div class="col-md-4">
+                <div class="control-panel card shadow-sm">
+                    <div class="card-header">
+                        <h3>设置</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- 图片上传 -->
+                        <div class="mb-4">
+                            <label class="form-label">上传图片</label>
+                            <div class="custom-file-upload">
+                                <InputFile OnChange="LoadImage" accept=".jpg,.jpeg,.png,.gif" class="form-control-file" />
+                                <span class="file-upload-text">选择图片文件</span>
                             </div>
+                        </div>
+
+                        <!-- 像素大小设置 -->
+                        <div class="mb-4">
+                            <label class="form-label">像素大小</label>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="widthSlider" class="form-label">宽度: @PixelWidth</label>
+                                    <input type="range" id="widthSlider" class="form-range" @bind="PixelWidth" @bind:event="oninput" min="10" max="200" step="1" />
+                                </div>
+                                <div class="col-12">
+                                    <label for="heightSlider" class="form-label">高度: @PixelHeight</label>
+                                    <input type="range" id="heightSlider" class="form-range" @bind="PixelHeight" @bind:event="oninput" min="10" max="200" step="1" />
+                                </div>
+                                <div class="col-12 d-flex items-center justify-content-center mt-2">
+                                    <button type="button" class="btn btn-sm" @onclick="ToggleLockAspectRatio" title="@(IsAspectRatioLocked ? "解锁宽高比例" : "锁定宽高比例")">
+                                        @(IsAspectRatioLocked ? "🔒" : "🔓")
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 调色板选择 -->
+                        <div class="mb-4">
+                            <label class="form-label">调色板</label>
+                            <select class="form-control" @bind="SelectedPalette">
+                                @foreach (var palette in AllPalettes)
+                                {
+                                    <option value="@palette.Name">@palette.Name (@(palette.Type == "System" ? "标准" : "自定义"))</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- 生成按钮 -->
+                        <button class="btn btn-primary w-100 generate-btn" @onclick="GeneratePixelArt" disabled="@IsGenerating">
+                            @if (IsGenerating)
+                            {
+                                <span>生成中...</span>
+                            }
+                            else
+                            {
+                                <span>生成像素图</span>
+                            }
+                        </button>
+
+                        <!-- 错误消息 -->
+                        @if (!string.IsNullOrEmpty(ErrorMessage))
+                        {
+                            <div class="alert alert-danger mt-3">@ErrorMessage</div>
+                        }
+
+                        <!-- 成功消息 -->
+                        @if (!string.IsNullOrEmpty(SuccessMessage))
+                        {
+                            <div class="alert alert-success mt-3">@SuccessMessage</div>
                         }
                     </div>
-                }
-                else if (OriginalImageUrl != null)
-                {
-                    <img src="@OriginalImageUrl" class="original-image" alt="原始图片" />
-                }
-                else
-                {
-                    <div class="empty-preview">请上传图片并设置参数</div>
-                }
+                </div>
+            </div>
+
+            <!-- 右侧预览区域 -->
+            <div class="col-md-8">
+                <div class="preview-panel card shadow-sm">
+                    <div class="card-header">
+                        <h3>预览</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="preview-container">
+                            @if (PixelArtData != null)
+                            {
+                                <div class="pixel-art" style="display: inline-block;">
+                                    @for (int y = 0; y < PixelHeight; y++)
+                                    {
+                                        <div class="pixel-row">
+                                            @for (int x = 0; x < PixelWidth; x++)
+                                            {
+                                                var index = y * PixelWidth + x;
+                                                if (index < PixelArtData.Length)
+                                                {
+                                                    var color = PixelArtData[index];
+                                                    <div class="pixel" style="background-color: @color;"></div>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (OriginalImageUrl != null)
+                            {
+                                <img src="@OriginalImageUrl" class="original-image" alt="原始图片" />
+                            }
+                            else
+                            {
+                                <div class="empty-preview">
+                                    <div class="empty-icon">📷</div>
+                                    <div class="empty-text">请上传图片并设置参数</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    .preview-container {
-        border: 1px solid #ddd;
-        padding: 20px;
-        min-height: 400px;
-        text-align: center;
-        background-color: #f9f9f9;
+    /* 全局样式 */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f7fa;
+        color: #333;
     }
 
+    /* 应用容器 */
+    .app-container {
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    /* 头部样式 */
+    .app-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 0 15px;
+    }
+
+    .app-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+
+    .app-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    /* 控制面板样式 */
+    .control-panel {
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .control-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .control-panel .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+
+    /* 预览面板样式 */
+    .preview-panel {
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .preview-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .preview-panel .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+
+    /* 预览容器样式 */
+    .preview-container {
+        border: 2px dashed #dee2e6;
+        padding: 30px;
+        min-height: 450px;
+        text-align: center;
+        background-color: #ffffff;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .preview-container:hover {
+        border-color: #667eea;
+        background-color: #f8f9ff;
+    }
+
+    /* 像素艺术样式 */
     .pixel-art {
         margin: 0 auto;
+        display: inline-block;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .pixel-row {
@@ -122,38 +240,289 @@
     }
 
     .pixel {
-        width: 20px;
-        height: 20px;
-        border: 1px solid #eee;
+        width: 22px;
+        height: 22px;
+        border: 1px solid #e0e0e0;
+        transition: transform 0.2s ease;
     }
 
+    .pixel:hover {
+        transform: scale(1.1);
+        z-index: 1;
+    }
+
+    /* 原始图片样式 */
     .original-image {
         max-width: 100%;
         max-height: 400px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
     }
 
+    .original-image:hover {
+        transform: scale(1.02);
+    }
+
+    /* 空状态样式 */
     .empty-preview {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 350px;
         color: #999;
-        padding: 100px 0;
     }
 
-    .palette-color {
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+
+    .empty-text {
+        font-size: 1.1rem;
+        text-align: center;
+    }
+
+    /* 表单元素样式 */
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    /* 滑块样式 */
+    .form-range {
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: #e9ecef;
+        outline: none;
+        transition: background 0.3s ease;
+    }
+
+    .form-range:hover {
+        background: #dee2e6;
+    }
+
+    .form-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .form-range::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+
+    .form-range::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .form-range::-moz-range-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+
+    /* 文件上传样式 */
+    .custom-file-upload {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 12px;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .custom-file-upload:hover {
+        border-color: #667eea;
+        background-color: #f0f2ff;
+    }
+
+    .custom-file-upload input[type="file"] {
+        position: absolute;
+        top: 0;
+        right: 0;
+        min-width: 100%;
+        min-height: 100%;
+        font-size: 100px;
+        text-align: right;
+        filter: alpha(opacity=0);
+        opacity: 0;
+        outline: none;
+        cursor: pointer;
+        display: block;
+    }
+
+    .file-upload-text {
+        display: block;
+        color: #666;
+        font-size: 0.9rem;
+        pointer-events: none;
+    }
+
+    /* 锁按钮样式 */
+    .btn-sm {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
-        gap: 5px;
+        justify-content: center;
+        font-size: 1.2rem;
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
+        transition: all 0.3s ease;
     }
 
-    .form-control-color {
-        width: 60px;
-        height: 40px;
-        padding: 0;
+    .btn-sm:hover {
+        background-color: #f0f2ff;
+        border-color: #667eea;
+        transform: scale(1.05);
+    }
+
+    /* 按钮样式 */
+    .generate-btn {
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .generate-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .generate-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    /* 消息样式 */
+    .alert {
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 15px;
+        animation: fadeIn 0.5s ease;
+    }
+
+    /* 动画效果 */
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .app-header h1 {
+            font-size: 2rem;
+        }
+
+        .app-subtitle {
+            font-size: 1rem;
+        }
+
+        .app-container {
+            padding: 10px 0;
+        }
+
+        .app-header {
+            margin: 0 10px;
+            padding: 15px;
+        }
+
+        .col-md-4,
+        .col-md-8 {
+            margin-bottom: 20px;
+        }
+
+        .preview-container {
+            min-height: 350px;
+            padding: 20px;
+        }
+
+        .pixel {
+            width: 18px;
+            height: 18px;
+        }
     }
 </style>
 
 @code {
-    private int PixelWidth { get; set; } = 50;
-    private int PixelHeight { get; set; } = 50;
+    private int _pixelWidth = 50;
+    private int _pixelHeight = 50;
+    private bool IsAspectRatioLocked { get; set; } = false;
     private string SelectedPalette { get; set; } = "Mard";
+
+    private int PixelWidth
+    {
+        get => _pixelWidth;
+        set
+        {
+            _pixelWidth = value;
+            if (IsAspectRatioLocked)
+            {
+                _pixelHeight = value;
+            }
+        }
+    }
+
+    private int PixelHeight
+    {
+        get => _pixelHeight;
+        set
+        {
+            _pixelHeight = value;
+            if (IsAspectRatioLocked)
+            {
+                _pixelWidth = value;
+            }
+        }
+    }
+
+    private void ToggleLockAspectRatio()
+    {
+        IsAspectRatioLocked = !IsAspectRatioLocked;
+        if (IsAspectRatioLocked)
+        {
+            // 锁定时，将高度设置为与宽度相同
+            _pixelHeight = _pixelWidth;
+        }
+    }
     private string? OriginalImageUrl { get; set; }
     private string[]? PixelArtData { get; set; }
     private IBrowserFile? uploadedFile;

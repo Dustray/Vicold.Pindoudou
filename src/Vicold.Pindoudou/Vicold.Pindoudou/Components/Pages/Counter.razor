@@ -3,134 +3,240 @@
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
-<h1>编辑</h1>
+<div class="app-container">
+    <header class="app-header">
+        <h1>拼豆图纸设计工具</h1>
+        <p class="app-subtitle">编辑和自定义您的像素艺术</p>
+    </header>
 
-<div class="container">
-    <div class="row">
-        <!-- 左侧调色板 -->
-        <div class="col-md-4">
-            <h3>当前调色板</h3>
-            <div class="palette-display">
-                @if (PaletteColors != null && PaletteColors.Count > 0)
-                {
-                    <div class="compact-color-grid">
-                        @foreach (var kvp in PaletteColors)
-                        {
-                            var color = kvp.Value;
-                            var code = kvp.Key;
-                            <div 
-                                class="compact-color-item"
-                                @onclick="() => SelectColor(color)"
-                                title="点击选择颜色"
-                            >
-                                <div 
-                                    class="color-swatch" 
-                                    style="background-color: @color" 
-                                ></div>
-                                <div class="color-number">@(@code)</div>
-                            </div>
-                        }
+    <div class="container mt-4">
+        <div class="row">
+            <!-- 左侧调色板 -->
+            <div class="col-md-4">
+                <div class="control-panel card shadow-sm">
+                    <div class="card-header">
+                        <h3>当前调色板</h3>
                     </div>
-                }
-                else
-                {
-                    <p>没有可用的调色板颜色</p>
-                }
-            </div>
-            
-            <div class="mt-3">
-                <h4>编辑工具</h4>
-                <div class="form-group">
+                    <div class="card-body">
+                        <div class="palette-display">
+                            @if (PaletteColors != null && PaletteColors.Count > 0)
+                            {
+                                <div class="compact-color-grid scrollable-palette">
+                                    @foreach (var kvp in PaletteColors)
+                                    {
+                                        var color = kvp.Value;
+                                        var code = kvp.Key;
+                                        var textColor = GetContrastTextColor(color);
+                                        <div 
+                                            class="compact-color-item"
+                                            @onclick="() => SelectColor(color)"
+                                            title="点击选择颜色"
+                                        >
+                                            <div 
+                                                class="color-swatch" 
+                                                style="background-color: @color"
+                                            >
+                                                <div class="color-code" style="color: @textColor">@(@code)</div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-center text-muted">没有可用的调色板颜色</p>
+                            }
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h4>编辑工具</h4>
+                            <div class="form-group">
                     <label>当前选择的颜色:</label>
                     <div class="color-preview" style="background-color: @SelectedColor"></div>
-                    <input type="color" @bind="SelectedColor" class="form-control form-control-color" />
                 </div>
-                
-                <div class="form-group form-check">
-                    <input type="checkbox" class="form-check-input" id="showCodes" @bind="ShowCodes" />
-                    <label class="form-check-label" for="showCodes">显示代码</label>
+                            
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" id="showCodes" @bind="ShowCodes" />
+                                <label class="form-check-label" for="showCodes">显示代码</label>
+                            </div>
+                            
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" id="hideTransparentCodes" @bind="HideTransparentCodes" />
+                                <label class="form-check-label" for="hideTransparentCodes">隐藏透明色代码</label>
+                            </div>
+                            
+                            <div class="d-flex gap-2 mt-3">
+                                <button class="btn btn-primary flex-fill" @onclick="ExportPixelArt">导出图片</button>
+                                <button class="btn btn-secondary flex-fill" @onclick="GoBack">返回</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="form-group form-check">
-                    <input type="checkbox" class="form-check-input" id="hideTransparentCodes" @bind="HideTransparentCodes" />
-                    <label class="form-check-label" for="hideTransparentCodes">隐藏透明色代码</label>
-                </div>
-                
-                <button class="btn btn-primary mt-2 mr-2" @onclick="ExportPixelArt">导出图片</button>
-                <button class="btn btn-secondary mt-2" @onclick="GoBack">返回</button>
             </div>
-        </div>
-        
-        <!-- 右侧像素图编辑区域 -->
-        <div class="col-md-8">
-            <h3>像素图编辑</h3>
-            <div class="edit-container">
-                @if (PixelData != null && PixelData.Length > 0)
-                {
-                    <div class="zoomable-container" id="zoomableContainer">
-                        <div class="zoomable-content" id="zoomableContent" style="transform-origin: 0 0;">
-                            <div class="pixel-art">
-                                @for (int y = 0; y < Height; y++)
-                                {
-                                    <div class="pixel-row">
-                                        @for (int x = 0; x < Width; x++)
-                                        {
-                                            var index = y * Width + x;
-                                            if (index < PixelData.Length)
+            
+            <!-- 右侧像素图编辑区域 -->
+            <div class="col-md-8">
+                <div class="preview-panel card shadow-sm">
+                    <div class="card-header">
+                        <h3>像素图编辑</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="edit-container">
+                            @if (PixelData != null && PixelData.Length > 0)
+                            {
+                                <div class="zoomable-container" id="zoomableContainer">
+                                    <div class="zoomable-content" id="zoomableContent" style="transform-origin: 0 0;">
+                                        <div class="pixel-art">
+                                            @for (int y = 0; y < Height; y++)
                                             {
-                                                <div 
-                                                    class="pixel" 
-                                                    style="background-color: @PixelData[index]"
-                                                    @onclick="() => EditPixel(x, y)"
-                                                    title="@PixelData[index]" >
-                                                    @if (ShowCodes)
+                                                <div class="pixel-row">
+                                                    @for (int x = 0; x < Width; x++)
                                                     {
-                                                        var code = GetCodeByColor(PixelData[index]);
-                                                        if (!string.IsNullOrEmpty(code))
+                                                        var index = y * Width + x;
+                                                        if (index < PixelData.Length)
                                                         {
-                                                            var textColor = GetContrastTextColor(PixelData[index]);
-                                                            <div class="color-number-in-pixel" style="color: @textColor">
-                                                                @(code)
+                                                            <div 
+                                                                class="pixel" 
+                                                                style="background-color: @PixelData[index]"
+                                                                @onclick="() => EditPixel(x, y)"
+                                                                title="@PixelData[index]"
+                                                            >
+                                                                @if (ShowCodes)
+                                                                {
+                                                                    var code = GetCodeByColor(PixelData[index]);
+                                                                    if (!string.IsNullOrEmpty(code))
+                                                                    {
+                                                                        var textColor = GetContrastTextColor(PixelData[index]);
+                                                                        <div class="color-number-in-pixel" style="color: @textColor">
+                                                                            @(code)
+                                                                        </div>
+                                                                    }
+                                                                }
                                                             </div>
                                                         }
                                                     }
                                                 </div>
                                             }
-                                        }
+                                        </div>
                                     </div>
-                                }
-                            </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="empty-state">
+                                    <div class="empty-icon">🎨</div>
+                                    <div class="empty-text">没有可编辑的像素图</div>
+                                    <div class="empty-subtext">请先在主页生成像素图</div>
+                                </div>
+                            }
                         </div>
                     </div>
-                }
-                else
-                {
-                    <p>没有可编辑的像素图</p>
-                }
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    .edit-container {
-        border: 1px solid #ddd;
-        padding: 20px;
-        min-height: 800px;
+    /* 全局样式 */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f7fa;
+        color: #333;
+    }
+
+    /* 应用容器 */
+    .app-container {
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    /* 头部样式 */
+    .app-header {
         text-align: center;
-        background-color: #f9f9f9;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 0 15px;
+    }
+
+    .app-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+
+    .app-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    /* 控制面板样式 */
+    .control-panel {
+        border-radius: 10px;
         overflow: hidden;
-        position: relative;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .control-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .control-panel .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+
+    /* 预览面板样式 */
+    .preview-panel {
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .preview-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .preview-panel .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+
+    /* 编辑容器样式 */
+    .edit-container {
+        border: 2px dashed #dee2e6;
+        padding: 20px;
+        min-height: 700px;
+        text-align: center;
+        background-color: #ffffff;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .edit-container:hover {
+        border-color: #667eea;
+        background-color: #f8f9ff;
     }
     
+    /* 缩放容器样式 */
     .zoomable-container {
         width: 100%;
-        height: 760px;
+        height: 650px;
         overflow: hidden;
         position: relative;
         background-color: #fff;
         border: 1px solid #eee;
         cursor: grab;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
     .zoomable-container:active {
@@ -145,6 +251,7 @@
         transition: transform 0.1s ease;
     }
     
+    /* 像素艺术样式 */
     .pixel-art {
         margin: 0;
     }
@@ -156,60 +263,108 @@
     .pixel {
         width: 20px;
         height: 20px;
-        border: 1px solid #eee;
+        border: 1px solid #e0e0e0;
         cursor: pointer;
         box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: center;
         position: relative;
+        transition: transform 0.2s ease, border-color 0.2s ease;
     }
     
     .pixel:hover {
-        border: 1px solid #000;
+        border: 1px solid #667eea;
+        transform: scale(1.05);
+        z-index: 1;
     }
     
+    /* 调色板样式 */
     .palette-display {
-        border: 1px solid #ddd;
+        border: 1px solid #e9ecef;
         padding: 10px;
-        background-color: #f9f9f9;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        max-height: 400px;
+        overflow: hidden;
     }
     
-    .compact-color-grid {
+    .scrollable-palette {
         display: flex;
         flex-wrap: wrap;
-        gap: 2px;
+        gap: 4px;
+        justify-content: flex-start;
+        max-height: 380px;
+        overflow-y: auto;
+        padding-right: 5px;
+    }
+    
+    /* 滚动条样式 */
+    .scrollable-palette::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .scrollable-palette::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    
+    .scrollable-palette::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    
+    .scrollable-palette::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
     }
     
     .compact-color-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1px;
         cursor: pointer;
-        width: 40px;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .compact-color-item:hover {
+        transform: translateY(-2px);
     }
     
     .color-swatch {
-        width: 30px;
-        height: 30px;
-        border: 1px solid #ddd;
+        width: 40px;
+        height: 40px;
+        border: 2px solid #e0e0e0;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
     }
     
     .compact-color-item:hover .color-swatch {
-        border: 1px solid #000;
+        border: 2px solid #667eea;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        transform: scale(1.05);
     }
 
-    .color-number {
-        font-size: 10px;
-        color: #333;
+    .color-code {
+        font-size: 12px;
+        font-weight: bold;
         text-align: center;
-        width: 100%;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 固定右侧编辑区域 */
+    @@media (min-width: 768px) {
+        .col-md-8 {
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+        }
     }
 
     .color-number-in-pixel {
-        font-size: 8px;
+        font-size: 9px;
         color: #333;
         text-align: center;
         width: 100%;
@@ -219,17 +374,149 @@
         padding: 0;
     }
     
+    /* 颜色预览样式 */
     .color-preview {
-        width: 60px;
-        height: 40px;
-        border: 1px solid #ddd;
+        width: 80px;
+        height: 50px;
+        border: 2px solid #e0e0e0;
         margin-bottom: 10px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
     }
     
+    .color-preview:hover {
+        border-color: #667eea;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* 表单元素样式 */
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
     .form-control-color {
-        width: 60px;
-        height: 40px;
+        width: 80px;
+        height: 50px;
         padding: 0;
+        border-radius: 6px;
+        border: 2px solid #ced4da;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-color:hover {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    /* 按钮样式 */
+    .btn {
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+        font-weight: 600;
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 空状态样式 */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 500px;
+        color: #999;
+        text-align: center;
+    }
+
+    .empty-icon {
+        font-size: 5rem;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+
+    .empty-text {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        font-weight: 500;
+        color: #666;
+    }
+
+    .empty-subtext {
+        font-size: 1rem;
+        color: #999;
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .app-header h1 {
+            font-size: 2rem;
+        }
+
+        .app-subtitle {
+            font-size: 1rem;
+        }
+
+        .app-container {
+            padding: 10px 0;
+        }
+
+        .app-header {
+            margin: 0 10px;
+            padding: 15px;
+        }
+
+        .col-md-4,
+        .col-md-8 {
+            margin-bottom: 20px;
+        }
+
+        .edit-container {
+            min-height: 500px;
+            padding: 15px;
+        }
+
+        .zoomable-container {
+            height: 450px;
+        }
+
+        .pixel {
+            width: 18px;
+            height: 18px;
+        }
+
+        .compact-color-item {
+            width: 40px;
+        }
+
+        .color-swatch {
+            width: 30px;
+            height: 30px;
+        }
     }
 </style>
 
@@ -784,30 +1071,47 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
+        // 绘制完整的灰色边框
+        const borderSize = 30;
+        ctx.fillStyle = '#f0f0f0';
+        
+        // 顶部边框
+        ctx.fillRect(pixelStartX - borderSize, pixelStartY - borderSize, width * pixelSize + borderSize * 2, borderSize);
+        
+        // 底部边框
+        ctx.fillRect(pixelStartX - borderSize, pixelStartY + height * pixelSize, width * pixelSize + borderSize * 2, borderSize);
+        
+        // 左侧边框
+        ctx.fillRect(pixelStartX - borderSize, pixelStartY - borderSize, borderSize, height * pixelSize + borderSize * 2);
+        
+        // 右侧边框
+        ctx.fillRect(pixelStartX + width * pixelSize, pixelStartY - borderSize, borderSize, height * pixelSize + borderSize * 2);
+        
         // 绘制顶部编号（X轴，从左到右）
+        ctx.fillStyle = '#333';
         for (let x = 0; x < width; x++) {
             const nx = pixelStartX + x * pixelSize + pixelSize / 2;
-            const ny = pixelStartY - 15;
+            const ny = pixelStartY - borderSize / 2;
             ctx.fillText((x+1).toString(), nx, ny);
         }
         
         // 绘制底部编号（X轴，从左到右）
         for (let x = 0; x < width; x++) {
             const nx = pixelStartX + x * pixelSize + pixelSize / 2;
-            const ny = pixelStartY + height * pixelSize + 15;
+            const ny = pixelStartY + height * pixelSize + borderSize / 2;
             ctx.fillText((x+1).toString(), nx, ny);
         }
         
         // 绘制左侧编号（Y轴，从下到上，左下角为0）
         for (let y = 0; y < height; y++) {
-            const nx = pixelStartX - 15;
+            const nx = pixelStartX - borderSize / 2;
             const ny = pixelStartY + (height - 1 - y) * pixelSize + pixelSize / 2;
             ctx.fillText((y+1).toString(), nx, ny);
         }
         
         // 绘制右侧编号（Y轴，从下到上，左下角为0）
         for (let y = 0; y < height; y++) {
-            const nx = pixelStartX + width * pixelSize + 15;
+            const nx = pixelStartX + width * pixelSize + borderSize / 2;
             const ny = pixelStartY + (height - 1 - y) * pixelSize + pixelSize / 2;
             ctx.fillText((y+1).toString(), nx, ny);
         }
@@ -833,20 +1137,8 @@
                 if (showCodes) {
                     // 检查是否需要隐藏透明色代码
                     let shouldShowCode = true;
-                    if (hideTransparentCodes) {
-                        // 判断是否为透明色
-                        // 情况1：#RRGGBBAA 格式，最后两位为00
-                        if (color.length === 9 && color.endsWith('00')) {
-                            shouldShowCode = false;
-                        }
-                        // 情况2：#AARRGGBB 格式，前两位为00
-                        else if (color.length === 9 && color.substring(1, 3) === '00') {
-                            shouldShowCode = false;
-                        }
-                        // 情况3：8位格式，如FFFFFF00（白色透明）
-                        else if (color === 'FFFFFF00') {
-                            shouldShowCode = false;
-                        }
+                    if (hideTransparentCodes && color.length === 9 && color.endsWith('00')) {
+                        shouldShowCode = false;
                     }
                     
                     if (shouldShowCode) {
