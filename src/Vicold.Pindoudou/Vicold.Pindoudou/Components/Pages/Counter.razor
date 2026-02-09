@@ -348,8 +348,8 @@
         return string.Empty;
     }
     
-    // 根据背景颜色获取对比度高的文本颜色（黑色或白色）
-    private string GetContrastTextColor(string color)
+    // 计算颜色的亮度
+    private double CalculateColorLuminance(string color)
     {
         // 解析颜色值
         int r, g, b;
@@ -368,33 +368,45 @@
         }
         else if (color.Length == 8)
         {
-            // #AARRGGBB 或 #RRGGBBAA 格式
-            if (color.EndsWith("00", StringComparison.OrdinalIgnoreCase))
-            {
-                // #RRGGBBAA 格式
-                r = Convert.ToInt32(color.Substring(0, 2), 16);
-                g = Convert.ToInt32(color.Substring(2, 2), 16);
-                b = Convert.ToInt32(color.Substring(4, 2), 16);
-            }
-            else
-            {
-                // #AARRGGBB 格式
-                r = Convert.ToInt32(color.Substring(2, 2), 16);
-                g = Convert.ToInt32(color.Substring(4, 2), 16);
-                b = Convert.ToInt32(color.Substring(6, 2), 16);
-            }
+            r = Convert.ToInt32(color.Substring(0, 2), 16);
+            g = Convert.ToInt32(color.Substring(2, 2), 16);
+            b = Convert.ToInt32(color.Substring(4, 2), 16);
+        }
+        else if (color.Length == 3)
+        {
+            // #RGB 格式
+            r = Convert.ToInt32(color.Substring(0, 1) + color.Substring(0, 1), 16);
+            g = Convert.ToInt32(color.Substring(1, 1) + color.Substring(1, 1), 16);
+            b = Convert.ToInt32(color.Substring(2, 1) + color.Substring(2, 1), 16);
         }
         else
         {
             // 默认黑色
-            return "#000000";
+            return 0;
         }
         
         // 计算亮度（使用相对亮度公式）
-        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    }
+    
+    // 根据背景颜色获取对比度高的文本颜色（黑色或白色）
+    private string GetContrastTextColor(string color)
+    {
+        // 计算亮度
+        double luminance = CalculateColorLuminance(color);
         
         // 如果亮度大于0.5，使用黑色文本；否则使用白色文本
         return luminance > 0.5 ? "#000000" : "#FFFFFF";
+    }
+    
+    // 判断颜色是否为浅色
+    private bool IsLightColor(string color)
+    {
+        // 计算亮度
+        double luminance = CalculateColorLuminance(color);
+        
+        // 亮度大于0.5视为浅色
+        return luminance > 0.5;
     }
     
     private int GetQueryParameter(string queryString, string parameterName, int defaultValue)
@@ -480,7 +492,68 @@
     }
 }
 
+
+
 <script>
+    // 计算颜色的亮度
+    function calculateColorLuminance(color) {
+        // 解析颜色值
+        let r, g, b;
+        
+        if (color.startsWith('#')) {
+            color = color.substring(1);
+        }
+        
+        if (color.length === 6) {
+            // #RRGGBB 格式
+            r = parseInt(color.substring(0, 2), 16);
+            g = parseInt(color.substring(2, 4), 16);
+            b = parseInt(color.substring(4, 6), 16);
+        } else if (color.length === 8) {
+            // #AARRGGBB 或 #RRGGBBAA 格式
+            if (color.toLowerCase().endsWith('00')) {
+                // #RRGGBBAA 格式
+                r = parseInt(color.substring(0, 2), 16);
+                g = parseInt(color.substring(2, 4), 16);
+                b = parseInt(color.substring(4, 6), 16);
+            } else {
+                // #AARRGGBB 格式
+                r = parseInt(color.substring(2, 4), 16);
+                g = parseInt(color.substring(4, 6), 16);
+                b = parseInt(color.substring(6, 8), 16);
+            }
+        } else if (color.length === 3) {
+            // #RGB 格式
+            r = parseInt(color.substring(0, 1) + color.substring(0, 1), 16);
+            g = parseInt(color.substring(1, 2) + color.substring(1, 2), 16);
+            b = parseInt(color.substring(2, 3) + color.substring(2, 3), 16);
+        } else {
+            // 默认黑色
+            return 0;
+        }
+        
+        // 计算亮度（使用相对亮度公式）
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    }
+    
+    // 判断颜色是否为浅色
+    function isLightColor(color) {
+        // 计算亮度
+        const luminance = calculateColorLuminance(color);
+        
+        // 亮度大于0.5视为浅色
+        return luminance > 0.5;
+    }
+    
+    // 根据背景颜色获取对比度高的文本颜色（黑色或白色）
+    function getContrastTextColor(color) {
+        // 计算亮度
+        const luminance = calculateColorLuminance(color);
+        
+        // 如果亮度大于0.5，使用黑色文本；否则使用白色文本
+        return luminance > 0.5 ? '#000000' : '#FFFFFF';
+    }
+    
     // 全局变量，用于保存缩放状态
     window.zoomState = {
         scale: 1,
@@ -656,10 +729,31 @@
         const colorCount = {};
         for (let i = 0; i < pixelData.length; i++) {
             const color = pixelData[i];
-            if (colorCount[color]) {
-                colorCount[color]++;
-            } else {
-                colorCount[color] = 1;
+            
+            // 检查是否需要跳过透明色
+            let shouldCountColor = true;
+            if (hideTransparentCodes) {
+                // 判断是否为透明色
+                // 情况1：#RRGGBBAA 格式，最后两位为00
+                if (color.length === 9 && color.endsWith('00')) {
+                    shouldCountColor = false;
+                }
+                // 情况2：#AARRGGBB 格式，前两位为00
+                else if (color.length === 9 && color.substring(1, 3) === '00') {
+                    shouldCountColor = false;
+                }
+                // 情况3：8位格式，如FFFFFF00（白色透明）
+                else if (color === 'FFFFFF00') {
+                    shouldCountColor = false;
+                }
+            }
+            
+            if (shouldCountColor) {
+                if (colorCount[color]) {
+                    colorCount[color]++;
+                } else {
+                    colorCount[color] = 1;
+                }
             }
         }
         
@@ -749,6 +843,10 @@
                         else if (color.length === 9 && color.substring(1, 3) === '00') {
                             shouldShowCode = false;
                         }
+                        // 情况3：8位格式，如FFFFFF00（白色透明）
+                        else if (color === 'FFFFFF00') {
+                            shouldShowCode = false;
+                        }
                     }
                     
                     if (shouldShowCode) {
@@ -808,19 +906,20 @@
             ctx.lineWidth = 1;
             ctx.strokeRect(paletteX, paletteY, itemWidth, paletteItemSize);
             
-            // 绘制代码
-            ctx.fillStyle = '#333';
+            // 绘制代码（放到色块内部）
+            // 根据背景颜色的明暗程度自动调整文字颜色
+            ctx.fillStyle = isLightColor(color) ? '#333' : '#fff';
             ctx.font = paletteCodeFontSize + 'px Arial';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText(code, paletteX + itemWidth / 2, paletteY + paletteItemSize + 4);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(code, paletteX + itemWidth / 2, paletteY + paletteItemSize / 2);
             
             // 绘制数量
             ctx.fillStyle = '#666';
             ctx.font = paletteCountFontSize + 'px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillText(colorCountValue + '个', paletteX + itemWidth / 2, paletteY + paletteItemSize + 20);
+            ctx.fillText(colorCountValue, paletteX + itemWidth / 2, paletteY + paletteItemSize + 4);
             
             // 更新位置
             count++;
