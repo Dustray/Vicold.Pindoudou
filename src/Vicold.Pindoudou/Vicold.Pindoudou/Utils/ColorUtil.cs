@@ -155,5 +155,78 @@ namespace Vicold.Pindoudou.Utils
             int randomIndex = random.Next(range);
             return minValue + randomIndex * step;
         }
+        
+        /// <summary>
+        /// 计算十六进制颜色的亮度
+        /// </summary>
+        /// <param name="color">十六进制颜色字符串</param>
+        /// <returns>亮度值 (0-1)</returns>
+        public static double CalculateColorLuminance(string color)
+        {
+            // 解析颜色值
+            int r, g, b;
+            
+            if (color.StartsWith("#"))
+            {
+                color = color.Substring(1);
+            }
+            
+            if (color.Length == 6)
+            {
+                // #RRGGBB 格式
+                r = Convert.ToInt32(color.Substring(0, 2), 16);
+                g = Convert.ToInt32(color.Substring(2, 2), 16);
+                b = Convert.ToInt32(color.Substring(4, 2), 16);
+            }
+            else if (color.Length == 8)
+            {
+                r = Convert.ToInt32(color.Substring(0, 2), 16);
+                g = Convert.ToInt32(color.Substring(2, 2), 16);
+                b = Convert.ToInt32(color.Substring(4, 2), 16);
+            }
+            else if (color.Length == 3)
+            {
+                // #RGB 格式
+                r = Convert.ToInt32(color.Substring(0, 1) + color.Substring(0, 1), 16);
+                g = Convert.ToInt32(color.Substring(1, 1) + color.Substring(1, 1), 16);
+                b = Convert.ToInt32(color.Substring(2, 1) + color.Substring(2, 1), 16);
+            }
+            else
+            {
+                // 默认黑色
+                return 0;
+            }
+            
+            // 计算亮度（使用相对亮度公式）
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        }
+        
+        /// <summary>
+        /// 根据背景颜色获取对比度高的文本颜色（黑色或白色）
+        /// </summary>
+        /// <param name="color">十六进制颜色字符串</param>
+        /// <returns>对比度高的文本颜色</returns>
+        public static string GetContrastTextColor(string color)
+        {
+            // 计算亮度
+            double luminance = CalculateColorLuminance(color);
+            
+            // 如果亮度大于0.5，使用黑色文本；否则使用白色文本
+            return luminance > 0.5 ? "#000000" : "#FFFFFF";
+        }
+        
+        /// <summary>
+        /// 判断颜色是否为浅色
+        /// </summary>
+        /// <param name="color">十六进制颜色字符串</param>
+        /// <returns>是否为浅色</returns>
+        public static bool IsLightColor(string color)
+        {
+            // 计算亮度
+            double luminance = CalculateColorLuminance(color);
+            
+            // 亮度大于0.5视为浅色
+            return luminance > 0.5;
+        }
     }
 }
