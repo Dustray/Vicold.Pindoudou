@@ -52,6 +52,12 @@
                         
                         <div class="mt-4">
                             <h4>编辑工具</h4>
+                            @if (!string.IsNullOrEmpty(Message))
+                            {
+                                <div class="alert alert-info" role="alert">
+                                    @Message
+                                </div>
+                            }
                             <div class="form-group">
                     <label>当前选择的颜色:</label>
                     <div class="color-preview" style="background-color: @SelectedColor"></div>
@@ -94,16 +100,22 @@
                                                 <div class="pixel-row">
                                                     @for (int x = 0; x < Width; x++)
                                                     {
+                                                        var currentX = x;
+                                                        var currentY = y;
                                                         var index = y * Width + x;
                                                         if (index < PixelData.Length)
                                                         {
                                                             <div 
                                                                 class="pixel" 
                                                                 style="background-color: @PixelData[index]"
-                                                                @onclick="() => EditPixel(x, y)"
+                                                                @onclick="() => EditPixel(currentX, currentY)"
+                                                                @onmousedown="() => StartDrawing(currentX, currentY)"
+                                                                @onmouseup="StopDrawing"
+                                                                @onmouseover="() => DrawIfMouseDown(currentX, currentY)"
+                                                                @onmouseleave="StopDrawing"
                                                                 title="@PixelData[index]"
                                                             >
-                                                                @if (ShowCodes)
+                                                                @if (ShowCodes && PaletteColors != null)
                                                                 {
                                                                     var code = PixelArtUtil.GetCodeByColor(PixelData[index], PaletteColors, HideTransparentCodes);
                                                                     if (!string.IsNullOrEmpty(code))
@@ -531,6 +543,8 @@
     private string SelectedColor { get; set; } = "#FFFFFF";
     private bool ShowCodes { get; set; } = true;
     private bool HideTransparentCodes { get; set; } = false;
+    private string Message { get; set; } = string.Empty;
+    private bool IsDrawing { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -605,15 +619,49 @@
     
     private void EditPixel(int x, int y)
     {
+        Message = $"编辑像素: x={x}, y={y}, 颜色={SelectedColor}";
+        Console.WriteLine($"EditPixel called with x={x}, y={y}, SelectedColor={SelectedColor}");
         if (PixelData != null)
         {
-            PixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, SelectedColor);
+            Console.WriteLine($"PixelData length: {PixelData.Length}");
+            var newPixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, SelectedColor);
+            Console.WriteLine($"New PixelData length: {newPixelData.Length}");
+            PixelData = newPixelData;
+            Console.WriteLine($"PixelData updated successfully");
+            Message += " - 成功";
+        }
+        else
+        {
+            Console.WriteLine("PixelData is null");
+            Message += " - 失败: PixelData为null";
         }
     }
     
     private void SelectColor(string color)
     {
+        Message = $"选择颜色: {color}";
+        Console.WriteLine($"SelectColor called with color={color}");
         SelectedColor = color;
+        Console.WriteLine($"SelectedColor updated to: {SelectedColor}");
+    }
+    
+    private void StartDrawing(int x, int y)
+    {
+        IsDrawing = true;
+        EditPixel(x, y);
+    }
+    
+    private void StopDrawing()
+    {
+        IsDrawing = false;
+    }
+    
+    private void DrawIfMouseDown(int x, int y)
+    {
+        if (IsDrawing)
+        {
+            EditPixel(x, y);
+        }
     }
     
     private void GoBack()

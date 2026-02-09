@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -49,12 +50,20 @@ namespace Vicold.Pindoudou.Utils
         /// <returns>修改后的像素数据数组</returns>
         public static string[] EditPixel(int x, int y, int width, string[] pixelData, string selectedColor)
         {
-            var index = y * width + x;
-            if (index >= 0 && index < pixelData?.Length)
+            if (pixelData == null)
             {
-                pixelData[index] = selectedColor;
+                return Array.Empty<string>();
             }
-            return pixelData;
+            
+            // 创建一个新的数组副本，以确保Blazor能够检测到变化
+            var newPixelData = (string[])pixelData.Clone();
+            
+            var index = y * width + x;
+            if (index >= 0 && index < newPixelData.Length)
+            {
+                newPixelData[index] = selectedColor;
+            }
+            return newPixelData;
         }
         
         /// <summary>
