@@ -92,7 +92,7 @@
                         <div class="edit-container">
                             @if (PixelData != null && PixelData.Length > 0)
                             {
-                                <div class="zoomable-container" id="zoomableContainer">
+                                <div class="zoomable-container" id="zoomableContainer" @onmouseleave="StopDrawing">
                                     <div class="zoomable-content" id="zoomableContent" style="transform-origin: 0 0;">
                                         <div class="pixel-art">
                                             @for (int y = 0; y < Height; y++)
@@ -109,10 +109,10 @@
                                                                 class="pixel" 
                                                                 style="background-color: @PixelData[index]"
                                                                 @onclick="() => EditPixel(currentX, currentY)"
-                                                                @onmousedown="() => StartDrawing(currentX, currentY)"
+                                                                @onmousedown="(e) => HandleMouseDown(currentX, currentY, e)"
+                                                                @onmousedown:preventDefault="true"
                                                                 @onmouseup="StopDrawing"
                                                                 @onmouseover="() => DrawIfMouseDown(currentX, currentY)"
-                                                                @onmouseleave="StopDrawing"
                                                                 title="@PixelData[index]"
                                                             >
                                                                 @if (ShowCodes && PaletteColors != null)
@@ -645,20 +645,27 @@
         Console.WriteLine($"SelectedColor updated to: {SelectedColor}");
     }
     
-    private void StartDrawing(int x, int y)
+    private bool IsBatchEditing { get; set; } = false;
+    
+    private void HandleMouseDown(int x, int y, MouseEventArgs e)
     {
-        IsDrawing = true;
-        EditPixel(x, y);
+        // 左键开始批量修改
+        if (e.Button == 0)
+        {
+            IsBatchEditing = true;
+            EditPixel(x, y);
+        }
+        // 右键不做任何处理，让它触发zoomableContainer的拖动功能
     }
     
     private void StopDrawing()
     {
-        IsDrawing = false;
+        IsBatchEditing = false;
     }
     
     private void DrawIfMouseDown(int x, int y)
     {
-        if (IsDrawing)
+        if (IsBatchEditing)
         {
             EditPixel(x, y);
         }

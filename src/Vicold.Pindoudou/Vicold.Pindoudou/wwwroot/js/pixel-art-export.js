@@ -143,10 +143,17 @@ window.initializeZoomAndPan = function() {
     
     // 鼠标按下事件
     container.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.clientX - translateX;
-        startY = e.clientY - translateY;
-        container.style.userSelect = 'none';
+        // 左键点击像素元素时，不启动拖动功能
+        // 右键点击时，无论是否是像素元素，都启动拖动功能
+        const target = e.target;
+        const isPixel = target.classList.contains('pixel') || target.closest('.pixel');
+        
+        if (!isPixel || e.button === 2) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            container.style.userSelect = 'none';
+        }
     });
     
     // 鼠标移动事件
