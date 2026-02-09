@@ -23,16 +23,23 @@ namespace Vicold.Pindoudou.Entities
         public int B { get; set; }
         
         /// <summary>
+        /// 透明度分量
+        /// </summary>
+        public int A { get; set; }
+        
+        /// <summary>
         /// 构造函数
         /// </summary>
         /// <param name="r">红色分量</param>
         /// <param name="g">绿色分量</param>
         /// <param name="b">蓝色分量</param>
-        public Color(int r, int g, int b)
+        /// <param name="a">透明度分量</param>
+        public Color(int r, int g, int b, int a = 255)
         {
             R = Math.Clamp(r, 0, 255);
             G = Math.Clamp(g, 0, 255);
             B = Math.Clamp(b, 0, 255);
+            A = Math.Clamp(a, 0, 255);
         }
         
         /// <summary>
@@ -48,12 +55,30 @@ namespace Vicold.Pindoudou.Entities
                 hex = hex.Substring(1);
             }
             
-            // 解析 RGB 值
-            int r = Convert.ToInt32(hex.Substring(0, 2), 16);
-            int g = Convert.ToInt32(hex.Substring(2, 2), 16);
-            int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+            int r, g, b, a = 255;
             
-            return new Color(r, g, b);
+            // 解析 RGB 值
+            if (hex.Length == 6)
+            {
+                // 格式: RRGGBB
+                r = Convert.ToInt32(hex.Substring(0, 2), 16);
+                g = Convert.ToInt32(hex.Substring(2, 2), 16);
+                b = Convert.ToInt32(hex.Substring(4, 2), 16);
+            }
+            else if (hex.Length == 8)
+            {
+                // 假设是 #RRGGBBAA 格式
+                r = Convert.ToInt32(hex.Substring(0, 2), 16);
+                g = Convert.ToInt32(hex.Substring(2, 2), 16);
+                b = Convert.ToInt32(hex.Substring(4, 2), 16);
+                a = Convert.ToInt32(hex.Substring(6, 2), 16);
+            }
+            else
+            {
+                throw new ArgumentException("Invalid hex color format. Expected 6 or 8 characters.");
+            }
+            
+            return new Color(r, g, b, a);
         }
         
         /// <summary>
@@ -66,7 +91,8 @@ namespace Vicold.Pindoudou.Entities
             return Math.Sqrt(
                 Math.Pow(R - other.R, 2) +
                 Math.Pow(G - other.G, 2) +
-                Math.Pow(B - other.B, 2)
+                Math.Pow(B - other.B, 2) +
+                Math.Pow(A - other.A, 2)
             );
         }
         
@@ -85,7 +111,7 @@ namespace Vicold.Pindoudou.Entities
         /// <returns>颜色副本</returns>
         public Color Clone()
         {
-            return new Color(R, G, B);
+            return new Color(R, G, B, A);
         }
         
         /// <summary>
@@ -97,7 +123,7 @@ namespace Vicold.Pindoudou.Entities
         {
             if (obj is Color other)
             {
-                return R == other.R && G == other.G && B == other.B;
+                return R == other.R && G == other.G && B == other.B && A == other.A;
             }
             return false;
         }
@@ -108,7 +134,7 @@ namespace Vicold.Pindoudou.Entities
         /// <returns>哈希码</returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(R, G, B);
+            return HashCode.Combine(R, G, B, A);
         }
         
         /// <summary>
@@ -117,7 +143,14 @@ namespace Vicold.Pindoudou.Entities
         /// <returns>十六进制颜色字符串</returns>
         public override string ToString()
         {
-            return $"#{R:X2}{G:X2}{B:X2}";
+            if (A == 255)
+            {
+                return $"#{R:X2}{G:X2}{B:X2}";
+            }
+            else
+            {
+                return $"#{R:X2}{G:X2}{B:X2}{A:X2}";
+            }
         }
     }
 }

@@ -56,20 +56,22 @@ namespace Vicold.Pindoudou.Utils
                 return new Vicold.Pindoudou.Entities.Color(255, 255, 255); // 默认白色
             }
             
-            int r = 0, g = 0, b = 0;
+            int r = 0, g = 0, b = 0, a = 0;
             
             foreach (var color in colors)
             {
                 r += color.R;
                 g += color.G;
                 b += color.B;
+                a += color.A;
             }
             
             r /= colors.Count;
             g /= colors.Count;
             b /= colors.Count;
+            a /= colors.Count;
             
-            return new Vicold.Pindoudou.Entities.Color(r, g, b);
+            return new Vicold.Pindoudou.Entities.Color(r, g, b, a);
         }
         
         /// <summary>
@@ -83,7 +85,8 @@ namespace Vicold.Pindoudou.Utils
             return Math.Sqrt(
                 Math.Pow(color1.R - color2.R, 2) +
                 Math.Pow(color1.G - color2.G, 2) +
-                Math.Pow(color1.B - color2.B, 2)
+                Math.Pow(color1.B - color2.B, 2) +
+                Math.Pow(color1.A - color2.A, 2)
             );
         }
         
@@ -94,7 +97,7 @@ namespace Vicold.Pindoudou.Utils
         /// <returns>十六进制颜色字符串</returns>
         public static string ColorToHex(Vicold.Pindoudou.Entities.Color color)
         {
-            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            return color.ToString();
         }
         
         /// <summary>
@@ -117,7 +120,8 @@ namespace Vicold.Pindoudou.Utils
             int r = random.Next(0, 256);
             int g = random.Next(0, 256);
             int b = random.Next(0, 256);
-            return new Vicold.Pindoudou.Entities.Color(r, g, b);
+            int a = 255; // 默认完全不透明
+            return new Vicold.Pindoudou.Entities.Color(r, g, b, a);
         }
         
         /// <summary>
@@ -131,7 +135,8 @@ namespace Vicold.Pindoudou.Utils
             int r = GetRandomWithStep(random, 0, 256, step);
             int g = GetRandomWithStep(random, 0, 256, step);
             int b = GetRandomWithStep(random, 0, 256, step);
-            return new Vicold.Pindoudou.Entities.Color(r, g, b);
+            int a = 255; // 默认完全不透明
+            return new Vicold.Pindoudou.Entities.Color(r, g, b, a);
         }
         
         /// <summary>

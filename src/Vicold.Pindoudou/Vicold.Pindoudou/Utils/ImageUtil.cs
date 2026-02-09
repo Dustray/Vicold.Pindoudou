@@ -54,7 +54,7 @@ namespace Vicold.Pindoudou.Utils
         /// <returns>平均颜色</returns>
         public static Vicold.Pindoudou.Entities.Color CalculateRegionAverageColor(Vicold.Pindoudou.Entities.Color[] pixels, int width, int height, int x, int y, int regionWidth, int regionHeight)
         {
-            int r = 0, g = 0, b = 0;
+            int r = 0, g = 0, b = 0, a = 0;
             int count = 0;
             
             for (int ry = y; ry < y + regionHeight && ry < height; ry++)
@@ -65,6 +65,7 @@ namespace Vicold.Pindoudou.Utils
                     r += color.R;
                     g += color.G;
                     b += color.B;
+                    a += color.A;
                     count++;
                 }
             }
@@ -74,7 +75,7 @@ namespace Vicold.Pindoudou.Utils
                 return new Vicold.Pindoudou.Entities.Color(255, 255, 255); // 默认白色
             }
             
-            return new Vicold.Pindoudou.Entities.Color(r / count, g / count, b / count);
+            return new Vicold.Pindoudou.Entities.Color(r / count, g / count, b / count, a / count);
         }
         
         /// <summary>
@@ -200,15 +201,8 @@ namespace Vicold.Pindoudou.Utils
                     for (int i = 0; i < skiaPixels.Length; i++)
                     {
                         var skiaColor = skiaPixels[i];
-                        // 处理透明度，如果 alpha 通道小于 128，视为白色
-                        if (skiaColor.Alpha < 128)
-                        {
-                            pixels[i] = new Vicold.Pindoudou.Entities.Color(255, 255, 255);
-                        }
-                        else
-                        {
-                            pixels[i] = new Vicold.Pindoudou.Entities.Color(skiaColor.Red, skiaColor.Green, skiaColor.Blue);
-                        }
+                        // 直接使用Skia颜色的Alpha通道值
+                        pixels[i] = new Vicold.Pindoudou.Entities.Color(skiaColor.Red, skiaColor.Green, skiaColor.Blue, skiaColor.Alpha);
                     }
                     
                     return pixels;

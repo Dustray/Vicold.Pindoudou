@@ -51,6 +51,11 @@
                     <label class="form-check-label" for="showCodes">显示代码</label>
                 </div>
                 
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="hideTransparentCodes" @bind="HideTransparentCodes" />
+                    <label class="form-check-label" for="hideTransparentCodes">隐藏透明色代码</label>
+                </div>
+                
                 <button class="btn btn-primary mt-2 mr-2" @onclick="ExportPixelArt">导出图片</button>
                 <button class="btn btn-secondary mt-2" @onclick="GoBack">返回</button>
             </div>
@@ -230,6 +235,7 @@
     private Dictionary<string, string> PaletteColors { get; set; } = new Dictionary<string, string>();
     private string SelectedColor { get; set; } = "#FFFFFF";
     private bool ShowCodes { get; set; } = true;
+    private bool HideTransparentCodes { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -316,6 +322,16 @@
     // 根据颜色值获取对应的代码
     private string GetCodeByColor(string color)
     {
+        // 检查是否需要隐藏透明色代码
+        if (HideTransparentCodes)
+        {
+            // #RRGGBBAA 格式，最后两位为00
+            if (color.Length == 9 && color.EndsWith("00", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+        }
+        
         foreach (var kvp in PaletteColors)
         {
             if (kvp.Value == color)
@@ -386,7 +402,7 @@
     {
         if (PixelData != null && PixelData.Length > 0)
         {
-            await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, PixelData, PaletteColors, ShowCodes);
+            await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, PixelData, PaletteColors, ShowCodes, HideTransparentCodes);
         }
     }
     
@@ -528,7 +544,7 @@
     };
     
     // 导出像素图为图片
-    window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors, showCodes) {
+    window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors, showCodes, hideTransparentCodes) {
         // 配置参数
         const pixelSize = 40; // 每个像素的大小，增大一倍以提高清晰度
         const padding = 70; // 留白大小
@@ -624,22 +640,38 @@
                 
                 // 如果需要显示代码
                 if (showCodes) {
-                    // 查找对应的代码
-                    let code = '';
-                    for (const [codeValue,colorKey] of Object.entries(paletteColors)) {
-                        if (colorKey === color) {
-                            code = codeValue;
-                            break;
+                    // 检查是否需要隐藏透明色代码
+                    let shouldShowCode = true;
+                    if (hideTransparentCodes) {
+                        // 判断是否为透明色
+                        // 情况1：#RRGGBBAA 格式，最后两位为00
+                        if (color.length === 9 && color.endsWith('00')) {
+                            shouldShowCode = false;
+                        }
+                        // 情况2：#AARRGGBB 格式，前两位为00
+                        else if (color.length === 9 && color.substring(1, 3) === '00') {
+                            shouldShowCode = false;
                         }
                     }
                     
-                    // 绘制代码
-                    if (code) {
-                        ctx.fillStyle = '#333';
-                        ctx.font = codeFontSize + 'px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(code, px + pixelSize / 2, py + pixelSize / 2);
+                    if (shouldShowCode) {
+                        // 查找对应的代码
+                        let code = '';
+                        for (const [codeValue,colorKey] of Object.entries(paletteColors)) {
+                            if (colorKey === color) {
+                                code = codeValue;
+                                break;
+                            }
+                        }
+                        
+                        // 绘制代码
+                        if (code) {
+                            ctx.fillStyle = '#333';
+                            ctx.font = codeFontSize + 'px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(code, px + pixelSize / 2, py + pixelSize / 2);
+                        }
                     }
                 }
             }

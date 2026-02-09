@@ -16,13 +16,14 @@ namespace Vicold.Pindoudou.Utils
         /// <returns>最相似的颜色</returns>
         public static Vicold.Pindoudou.Entities.Color GetSimilarColorFromPalette(List<Vicold.Pindoudou.Entities.Color> from, PaletteEntity palette)
         {
-            // 根据传入的若干color，获取它们RGB的平均值
+            // 根据传入的若干color，获取它们RGB和Alpha的平均值
             var avgR = from.Average(c => c.R);
             var avgG = from.Average(c => c.G);
             var avgB = from.Average(c => c.B);
+            var avgA = from.Average(c => c.A);
             
             // 创建平均颜色
-            var averageColor = new Vicold.Pindoudou.Entities.Color((int)avgR, (int)avgG, (int)avgB);
+            var averageColor = new Vicold.Pindoudou.Entities.Color((int)avgR, (int)avgG, (int)avgB, (int)avgA);
             
             // 在调色板中找到最接近的颜色
             return palette.FindClosestColor(averageColor);

@@ -71,6 +71,10 @@ namespace Vicold.Pindoudou.Entities
             }
 
             Vicold.Pindoudou.Entities.Color closestColor = ColorsList[0].Item2;
+            if (targetColor.A == 0)
+            {
+                targetColor = new Vicold.Pindoudou.Entities.Color(255, 255, 255, 0);
+            }
             double minDistance = double.MaxValue;
 
             foreach (var (_, color) in ColorsList)
