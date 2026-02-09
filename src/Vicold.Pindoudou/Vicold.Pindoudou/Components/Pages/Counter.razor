@@ -797,17 +797,12 @@
             g = parseInt(color.substring(2, 4), 16);
             b = parseInt(color.substring(4, 6), 16);
         } else if (color.length === 8) {
-            // #AARRGGBB 或 #RRGGBBAA 格式
+            // #RRGGBBAA 格式
             if (color.toLowerCase().endsWith('00')) {
                 // #RRGGBBAA 格式
                 r = parseInt(color.substring(0, 2), 16);
                 g = parseInt(color.substring(2, 4), 16);
                 b = parseInt(color.substring(4, 6), 16);
-            } else {
-                // #AARRGGBB 格式
-                r = parseInt(color.substring(2, 4), 16);
-                g = parseInt(color.substring(4, 6), 16);
-                b = parseInt(color.substring(6, 8), 16);
             }
         } else if (color.length === 3) {
             // #RGB 格式
@@ -864,18 +859,12 @@
             b = parseInt(color.substring(4, 6), 16);
         }
         else if (color.length === 9) {
-            // #AARRGGBB 或 #RRGGBBAA 格式
+            // #RRGGBBAA 格式
             if (color.endsWith('00')) {
                 // #RRGGBBAA 格式
                 r = parseInt(color.substring(0, 2), 16);
                 g = parseInt(color.substring(2, 4), 16);
                 b = parseInt(color.substring(4, 6), 16);
-            }
-            else {
-                // #AARRGGBB 格式
-                r = parseInt(color.substring(2, 4), 16);
-                g = parseInt(color.substring(4, 6), 16);
-                b = parseInt(color.substring(6, 8), 16);
             }
         }
         else {
@@ -1019,20 +1008,9 @@
             
             // 检查是否需要跳过透明色
             let shouldCountColor = true;
-            if (hideTransparentCodes) {
                 // 判断是否为透明色
-                // 情况1：#RRGGBBAA 格式，最后两位为00
-                if (color.length === 9 && color.endsWith('00')) {
-                    shouldCountColor = false;
-                }
-                // 情况2：#AARRGGBB 格式，前两位为00
-                else if (color.length === 9 && color.substring(1, 3) === '00') {
-                    shouldCountColor = false;
-                }
-                // 情况3：8位格式，如FFFFFF00（白色透明）
-                else if (color === 'FFFFFF00') {
-                    shouldCountColor = false;
-                }
+            if (hideTransparentCodes && color.length === 9 && color.endsWith('00')) {
+                shouldCountColor = false;
             }
             
             if (shouldCountColor) {
