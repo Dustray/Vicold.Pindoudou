@@ -1,5 +1,6 @@
 ﻿@page "/counter"
 @using System.Threading.Tasks
+@using System.Collections.Generic
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
 @inject NavigationManager NavigationManager
@@ -52,13 +53,20 @@
                         
                         <div class="mt-4">
                             <h4>编辑工具</h4>
-                    <div class="form-group">
-                        <label>当前选择的颜色:</label>
-                    <div class="color-preview" style="background-color: @SelectedColor">
-                        <div class="color-code" style="color: @(ColorUtil.GetContrastTextColor(SelectedColor))">@(PaletteColors != null ? PixelArtUtil.GetCodeByColor(SelectedColor, PaletteColors, false) : string.Empty)</div>
-                    </div>
-                   
-                </div>
+                            <div class="form-group">
+                                <label class="d-block mb-2">当前选择的颜色:</label>
+                                <div class="color-preview" style="background-color: @SelectedColor">
+                                    <div class="color-code" style="color: @(ColorUtil.GetContrastTextColor(SelectedColor))">@(PaletteColors != null ? PixelArtUtil.GetCodeByColor(SelectedColor, PaletteColors, false) : string.Empty)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="d-block mb-2">工具:</label>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn @(CurrentTool == EditTool.Brush ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Brush">画笔</button>
+                                    <button type="button" class="btn @(CurrentTool == EditTool.Bucket ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Bucket">油漆桶</button>
+                                </div>
+                            </div>
                             
                             <div class="form-group form-check">
                                 <input type="checkbox" class="form-check-input" id="showCodes" @bind="ShowCodes" />
@@ -541,6 +549,12 @@
 </style>
 
 @code {
+    private enum EditTool
+    {
+        Brush,
+        Bucket
+    }
+    
     private string[]? PixelData { get; set; }
     private int Width { get; set; }
     private int Height { get; set; }
@@ -551,6 +565,7 @@
     private bool HideTransparentCodes { get; set; } = false;
     private string Message { get; set; } = string.Empty;
     private bool IsDrawing { get; set; } = false;
+    private EditTool CurrentTool { get; set; } = EditTool.Brush;
 
     protected override async Task OnInitializedAsync()
     {
@@ -626,11 +641,23 @@
     private void EditPixel(int x, int y)
     {
         Message = $"编辑像素: x={x}, y={y}, 颜色={SelectedColor}";
-        Console.WriteLine($"EditPixel called with x={x}, y={y}, SelectedColor={SelectedColor}");
+        Console.WriteLine($"EditPixel called with x={x}, y={y}, SelectedColor={SelectedColor}, Tool={CurrentTool}");
         if (PixelData != null)
         {
             Console.WriteLine($"PixelData length: {PixelData.Length}");
-            var newPixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, SelectedColor);
+            string[] newPixelData;
+            
+            if (CurrentTool == EditTool.Brush)
+            {
+                // 画笔工具：编辑单个像素
+                newPixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, SelectedColor);
+            }
+            else
+            {
+                // 油漆桶工具：洪水填充
+                newPixelData = FloodFill(x, y, SelectedColor, PixelData);
+            }
+            
             Console.WriteLine($"New PixelData length: {newPixelData.Length}");
             PixelData = newPixelData;
             Console.WriteLine($"PixelData updated successfully");
@@ -641,6 +668,55 @@
             Console.WriteLine("PixelData is null");
             Message += " - 失败: PixelData为null";
         }
+    }
+    
+    private string[] FloodFill(int startX, int startY, string newColor, string[] pixelData)
+    {
+        // 创建像素数据的副本
+        var result = new string[pixelData.Length];
+        Array.Copy(pixelData, result, pixelData.Length);
+        
+        // 获取起始像素的颜色
+        int startIndex = startY * Width + startX;
+        string targetColor = pixelData[startIndex];
+        
+        // 如果目标颜色与新颜色相同，直接返回
+        if (targetColor == newColor)
+        {
+            return result;
+        }
+        
+        // 使用队列实现洪水填充
+        var queue = new Queue<(int, int)>();
+        queue.Enqueue((startX, startY));
+        
+        while (queue.Count > 0)
+        {
+            var (x, y) = queue.Dequeue();
+            
+            // 检查坐标是否有效
+            if (x < 0 || x >= Width || y < 0 || y >= Height)
+            {
+                continue;
+            }
+            
+            int index = y * Width + x;
+            
+            // 检查当前像素颜色是否与目标颜色相同
+            if (result[index] == targetColor)
+            {
+                // 设置新颜色
+                result[index] = newColor;
+                
+                // 将上下左右四个方向的像素加入队列
+                queue.Enqueue((x - 1, y)); // 左
+                queue.Enqueue((x + 1, y)); // 右
+                queue.Enqueue((x, y - 1)); // 上
+                queue.Enqueue((x, y + 1)); // 下
+            }
+        }
+        
+        return result;
     }
     
     private void SelectColor(string color)
