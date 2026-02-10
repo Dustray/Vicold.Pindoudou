@@ -65,6 +65,7 @@
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn @(CurrentTool == EditTool.Brush ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Brush">画笔</button>
                                     <button type="button" class="btn @(CurrentTool == EditTool.Bucket ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Bucket">油漆桶</button>
+                                    <button type="button" class="btn @(CurrentTool == EditTool.Eraser ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Eraser">橡皮擦</button>
                                 </div>
                             </div>
                             
@@ -560,7 +561,8 @@
     private enum EditTool
     {
         Brush,
-        Bucket
+        Bucket,
+        Eraser
     }
     
     private string[]? PixelData { get; set; }
@@ -650,8 +652,14 @@
     
     private void EditPixel(int x, int y)
     {
-        Message = $"编辑像素: x={x}, y={y}, 颜色={SelectedColor}";
-        Console.WriteLine($"EditPixel called with x={x}, y={y}, SelectedColor={SelectedColor}, Tool={CurrentTool}");
+        string targetColor = SelectedColor;
+        if (CurrentTool == EditTool.Eraser)
+        {
+            targetColor = "#FFFFFF00";
+        }
+        
+        Message = $"编辑像素: x={x}, y={y}, 颜色={targetColor}";
+        Console.WriteLine($"EditPixel called with x={x}, y={y}, TargetColor={targetColor}, Tool={CurrentTool}");
         if (PixelData != null)
         {
             // 保存当前状态到撤销栈
@@ -665,15 +673,15 @@
             Console.WriteLine($"PixelData length: {PixelData.Length}");
             string[] newPixelData;
             
-            if (CurrentTool == EditTool.Brush)
+            if (CurrentTool == EditTool.Brush || CurrentTool == EditTool.Eraser)
             {
-                // 画笔工具：编辑单个像素
-                newPixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, SelectedColor);
+                // 画笔或橡皮擦工具：编辑单个像素
+                newPixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, targetColor);
             }
             else
             {
                 // 油漆桶工具：洪水填充
-                newPixelData = FloodFill(x, y, SelectedColor, PixelData);
+                newPixelData = FloodFill(x, y, targetColor, PixelData);
             }
             
             Console.WriteLine($"New PixelData length: {newPixelData.Length}");
