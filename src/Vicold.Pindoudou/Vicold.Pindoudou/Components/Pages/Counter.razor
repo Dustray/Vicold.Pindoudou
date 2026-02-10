@@ -6,7 +6,7 @@
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
-<div class="app-container">
+<div class="app-container" @onkeydown="HandleKeyDown" tabindex="0">
     <header class="app-header">
         <h1>拼豆图纸设计工具</h1>
         <p class="app-subtitle">编辑和自定义您的像素艺术</p>
@@ -65,6 +65,14 @@
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn @(CurrentTool == EditTool.Brush ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Brush">画笔</button>
                                     <button type="button" class="btn @(CurrentTool == EditTool.Bucket ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Bucket">油漆桶</button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="d-block mb-2">操作:</label>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="Undo" title="撤销 (Ctrl+Z)">⬅</button>
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="Redo" title="反撤销 (Ctrl+Y)">➡</button>
                                 </div>
                             </div>
                             
@@ -566,6 +574,8 @@
     private string Message { get; set; } = string.Empty;
     private bool IsDrawing { get; set; } = false;
     private EditTool CurrentTool { get; set; } = EditTool.Brush;
+    private Stack<string[]> UndoStack { get; set; } = new Stack<string[]>();
+    private Stack<string[]> RedoStack { get; set; } = new Stack<string[]>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -644,6 +654,14 @@
         Console.WriteLine($"EditPixel called with x={x}, y={y}, SelectedColor={SelectedColor}, Tool={CurrentTool}");
         if (PixelData != null)
         {
+            // 保存当前状态到撤销栈
+            var currentState = new string[PixelData.Length];
+            Array.Copy(PixelData, currentState, PixelData.Length);
+            UndoStack.Push(currentState);
+            
+            // 清空重做栈
+            RedoStack.Clear();
+            
             Console.WriteLine($"PixelData length: {PixelData.Length}");
             string[] newPixelData;
             
@@ -750,6 +768,62 @@
         if (IsBatchEditing)
         {
             EditPixel(x, y);
+        }
+    }
+    
+    private void Undo()
+    {
+        if (UndoStack.Count > 0 && PixelData != null)
+        {
+            // 保存当前状态到重做栈
+            var currentState = new string[PixelData.Length];
+            Array.Copy(PixelData, currentState, PixelData.Length);
+            RedoStack.Push(currentState);
+            
+            // 从撤销栈中弹出上一个状态
+            PixelData = UndoStack.Pop();
+            Message = "撤销操作成功";
+            Console.WriteLine("Undo operation performed");
+        }
+        else
+        {
+            Message = "没有可撤销的操作";
+            Console.WriteLine("No undo operations available");
+        }
+    }
+    
+    private void Redo()
+    {
+        if (RedoStack.Count > 0 && PixelData != null)
+        {
+            // 保存当前状态到撤销栈
+            var currentState = new string[PixelData.Length];
+            Array.Copy(PixelData, currentState, PixelData.Length);
+            UndoStack.Push(currentState);
+            
+            // 从重做栈中弹出下一个状态
+            PixelData = RedoStack.Pop();
+            Message = "反撤销操作成功";
+            Console.WriteLine("Redo operation performed");
+        }
+        else
+        {
+            Message = "没有可反撤销的操作";
+            Console.WriteLine("No redo operations available");
+        }
+    }
+    
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        // 处理Ctrl+Z撤销操作
+        if (e.CtrlKey && e.Key == "z")
+        {
+            Undo();
+        }
+        // 处理Ctrl+Y反撤销操作
+        else if (e.CtrlKey && e.Key == "y")
+        {
+            Redo();
         }
     }
     
