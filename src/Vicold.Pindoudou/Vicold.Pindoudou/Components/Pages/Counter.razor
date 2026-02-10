@@ -52,15 +52,12 @@
                         
                         <div class="mt-4">
                             <h4>编辑工具</h4>
-                            @if (!string.IsNullOrEmpty(Message))
-                            {
-                                <div class="alert alert-info" role="alert">
-                                    @Message
-                                </div>
-                            }
-                            <div class="form-group">
-                    <label>当前选择的颜色:</label>
-                    <div class="color-preview" style="background-color: @SelectedColor"></div>
+                    <div class="form-group">
+                        <label>当前选择的颜色:</label>
+                    <div class="color-preview" style="background-color: @SelectedColor">
+                        <div class="color-code" style="color: @(ColorUtil.GetContrastTextColor(SelectedColor))">@(PaletteColors != null ? PixelArtUtil.GetCodeByColor(SelectedColor, PaletteColors, false) : string.Empty)</div>
+                    </div>
+                   
                 </div>
                             
                             <div class="form-group form-check">
@@ -78,6 +75,12 @@
                                 <button class="btn btn-secondary flex-fill" @onclick="GoBack">返回</button>
                             </div>
                         </div>
+                     @if (!string.IsNullOrEmpty(Message))
+                    {
+                        <div class="alert alert-info" role="alert">
+                            @Message
+                        </div>
+                    }
                     </div>
                 </div>
             </div>
@@ -393,9 +396,12 @@
         width: 80px;
         height: 50px;
         border: 2px solid #e0e0e0;
-        margin-bottom: 10px;
+        margin-right: 10px;
         border-radius: 6px;
         transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .color-preview:hover {
