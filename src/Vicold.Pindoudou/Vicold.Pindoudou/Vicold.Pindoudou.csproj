@@ -22,6 +22,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
+        <PublishReadyToRun>false</PublishReadyToRun>
 
         <!-- Display name -->
         <ApplicationTitle>Vicold.Pindoudou</ApplicationTitle>
