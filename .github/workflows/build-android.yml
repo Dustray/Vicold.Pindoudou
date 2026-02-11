@@ -28,7 +28,7 @@ jobs:
       run: dotnet workload restore --project $env:Project_Path
 
     - name: Restore dependencies
-      run: dotnet restore $env:Solution_Path --runtime android-arm64
+      run: dotnet restore $env:Project_Path
 
     - name: Build Release (Android only)
       run: dotnet build $env:Project_Path --configuration Release --no-restore --framework net10.0-android
