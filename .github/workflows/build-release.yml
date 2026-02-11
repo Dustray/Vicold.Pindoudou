@@ -13,7 +13,7 @@ jobs:
     env:
       Solution_Path: src\Vicold.Pindoudou\Vicold.Pindoudou.slnx
       Project_Path: src\Vicold.Pindoudou\Vicold.Pindoudou\Vicold.Pindoudou.csproj
-      Output_Dir: bin\Release\net8.0-windows10.0.19041.0\win10-x64\publish
+      Output_Dir: bin\Release\net10.0-windows10.0.19041.0\win-x64\publish
 
     steps:
     - name: Checkout code
@@ -27,23 +27,23 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore $env:Solution_Path
 
-    - name: Build Release
-      run: dotnet build $env:Project_Path --configuration Release --no-restore
+    - name: Build Release (Windows only)
+      run: dotnet build $env:Project_Path --configuration Release --no-restore --framework net10.0-windows10.0.19041.0
 
-    - name: Publish Release
-      run: dotnet publish $env:Project_Path --configuration Release --no-build --output $env:Output_Dir
+    - name: Publish Release (Windows only)
+      run: dotnet publish $env:Project_Path --configuration Release --no-build --output $env:Output_Dir --framework net10.0-windows10.0.19041.0 --runtime win-x64
 
     - name: Package as Zip
       run: |
-        $publishDir = Join-Path -Path "src\Vicold.Pindoudou\Vicold.Pindoudou" -ChildPath $env:Output_Dir
-        $zipPath = Join-Path -Path "src\Vicold.Pindoudou\Vicold.Pindoudou" -ChildPath "Vicold.Pindoudou_Release.zip"
+        $publishDir = $env:Output_Dir
+        $zipPath = "Vicold.Pindoudou_Release.zip"
         Compress-Archive -Path "$publishDir\*" -DestinationPath "$zipPath"
 
     - name: Upload Release Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Vicold.Pindoudou-Release
-        path: src\Vicold.Pindoudou\Vicold.Pindoudou\Vicold.Pindoudou_Release.zip
+        path: Vicold.Pindoudou_Release.zip
 
     - name: Upload to Release (if release event)
       if: github.event_name == 'release'
@@ -52,6 +52,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: src\Vicold.Pindoudou\Vicold.Pindoudou\Vicold.Pindoudou_Release.zip
+        asset_path: Vicold.Pindoudou_Release.zip
         asset_name: Vicold.Pindoudou_Release.zip
         asset_content_type: application/zip
