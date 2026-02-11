@@ -2,7 +2,7 @@ name: Build Android Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "fix-action" ]
   release:
     types: [ created ]
 
@@ -11,7 +11,6 @@ jobs:
     runs-on: windows-latest
 
     env:
-      Solution_Path: src\Vicold.Pindoudou\Vicold.Pindoudou.slnx
       Project_Path: src\Vicold.Pindoudou\Vicold.Pindoudou\Vicold.Pindoudou.csproj
       Output_Dir: bin\Release\net10.0-android
 
@@ -29,6 +28,9 @@ jobs:
 
     - name: Restore dependencies
       run: dotnet restore $env:Project_Path
+
+    - name: Build project
+      run: dotnet build $env:Project_Path --configuration Release --no-restore
 
     - name: Publish Release (Android only)
       run: dotnet publish $env:Project_Path --configuration Release --no-restore --output $env:Output_Dir --framework net10.0-android
