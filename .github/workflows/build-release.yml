@@ -2,7 +2,7 @@ name: Build Release and Package as Zip
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "fix-action" ]
   release:
     types: [ created ]
 
