@@ -1,4 +1,4 @@
-name: Build Release and Package as Zip
+name: Build Windows Release and Package as Zip
 
 on:
   push:
@@ -39,14 +39,14 @@ jobs:
     - name: Package as Zip
       run: |
         $publishDir = $env:Output_Dir
-        $zipPath = "Vicold.Pindoudou_Release.zip"
+        $zipPath = "Vicold.Pindoudou_Windows_Release.zip"
         Compress-Archive -Path "$publishDir\*" -DestinationPath "$zipPath"
 
     - name: Upload Release Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Vicold.Pindoudou-Release
-        path: Vicold.Pindoudou_Release.zip
+        name: Vicold.Pindoudou-Windows-Release
+        path: Vicold.Pindoudou_Windows_Release.zip
 
     - name: Upload to Release (if release event)
       if: github.event_name == 'release'
@@ -55,6 +55,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: Vicold.Pindoudou_Release.zip
-        asset_name: Vicold.Pindoudou_Release.zip
+        asset_path: Vicold.Pindoudou_Windows_Release.zip
+        asset_name: Vicold.Pindoudou_Windows_Release.zip
         asset_content_type: application/zip
