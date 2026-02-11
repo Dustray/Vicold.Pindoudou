@@ -24,6 +24,9 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    - name: Restore workloads
+      run: dotnet workload restore --project $env:Project_Path
+
     - name: Restore dependencies
       run: dotnet restore $env:Solution_Path
 
