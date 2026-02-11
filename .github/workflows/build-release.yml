@@ -28,7 +28,7 @@ jobs:
       run: dotnet workload restore --project $env:Project_Path
 
     - name: Restore dependencies
-      run: dotnet restore $env:Solution_Path
+      run: dotnet restore $env:Solution_Path --runtime win-x64
 
     - name: Build Release (Windows only)
       run: dotnet build $env:Project_Path --configuration Release --no-restore --framework net10.0-windows10.0.19041.0
