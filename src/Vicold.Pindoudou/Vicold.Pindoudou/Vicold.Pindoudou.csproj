@@ -11,6 +11,10 @@
             either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
         <!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
 
+        <RuntimeIdentifiers Condition="$([MSBuild]::IsOSPlatform('windows')) And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">win-x64</RuntimeIdentifiers>
+        <RuntimeIdentifiers Condition="$([MSBuild]::IsOSPlatform('windows')) And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">android-arm64</RuntimeIdentifiers>
+        <RuntimeIdentifiers Condition="$([MSBuild]::IsOSPlatform('osx'))">maccatalyst-x64;maccatalyst-arm64;ios-arm64</RuntimeIdentifiers>
+
         <OutputType>Exe</OutputType>
         <RootNamespace>Vicold.Pindoudou</RootNamespace>
         <UseMaui>true</UseMaui>
