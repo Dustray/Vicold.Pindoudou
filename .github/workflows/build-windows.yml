@@ -39,6 +39,7 @@ jobs:
           -f $env:FRAMEWORK `
           -r $env:RUNTIME `
           --self-contained true `
+          -p:UseMonoRuntime=false `
           -p:WindowsPackageType=None `
           -o $env:OUTPUT_DIR
 
