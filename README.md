@@ -8,16 +8,6 @@
 
 > 构建版本会在创建新的release时自动更新
 
-## 自动版本更新说明
-
-README文件中的版本号会通过GitHub Actions工作流在创建新的release时自动更新。每次发布新版本时，系统会：
-
-1. 从GitHub release的tag中提取版本号
-2. 更新项目文件中的版本信息
-3. 更新README文件中的版本显示
-
-这样可以确保README文件始终显示最新的版本信息，无需手动修改。
-
 ## 构建状态
 
 ![Windows Build](https://github.com/dustray/Vicold.Pindoudou/actions/workflows/build-windows.yml/badge.svg)
