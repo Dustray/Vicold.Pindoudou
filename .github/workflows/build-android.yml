@@ -34,6 +34,11 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore $env:PROJECT_PATH
 
+    - name: Decode keystore
+      run: |
+        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" > keystore.b64
+        certutil -decode keystore.b64 release.keystore
+
     # ⭐ Android 发布直接 publish 即可
     - name: Publish Android Release
       run: |
@@ -41,20 +46,28 @@ jobs:
           -c Release `
           -f $env:FRAMEWORK `
           -p:AndroidPackageFormat=apk `
+          -p:AndroidKeyStore=true `
+          -p:AndroidSigningKeyStore=release.keystore `
+          -p:AndroidSigningKeyAlias=${{ secrets.ANDROID_KEY_ALIAS }} `
+          -p:AndroidSigningKeyPass=${{ secrets.ANDROID_KEY_PASSWORD }} `
+          -p:AndroidSigningStorePass=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+
+    - name: Show final APK location
+      run: tree /f src\Vicold.Pindoudou\Vicold.Pindoudou\bin\Release
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Android-Release
         path: |
-          **/*.apk
+          **/bin/Release/net*-android/*-Signed.apk
 
     - name: Upload to GitHub Release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          **/bin/Release/net10.0-android/*-Signed.apk
+          **/bin/Release/net*-android/*-Signed.apk
         overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
