@@ -60,14 +60,14 @@ jobs:
       with:
         name: Android-Release
         path: |
-          **/bin/Release/net*-android/*-Signed.apk
+          **/bin/Release/net*-android/android-*/*-Signed.apk
 
     - name: Upload to GitHub Release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          **/bin/Release/net*-android/*-Signed.apk
+          **/bin/Release/net*-android/android-*/*-Signed.apk
         overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
