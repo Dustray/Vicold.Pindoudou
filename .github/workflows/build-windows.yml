@@ -2,9 +2,12 @@ name: Build Windows Release
 
 on:
   push:
-    branches: [ "main", "action2" ]
+    branches: [ "main", "action3" ]
   release:
     types: [ created ]
+  
+permissions:
+  contents: write
 
 jobs:
   build:

@@ -6,13 +6,17 @@ on:
   release:
     types: [ created ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
 
     env:
-      Project_Path: src\Vicold.Pindoudou\Vicold.Pindoudou\Vicold.Pindoudou.csproj
-      Output_Dir: bin\Release\net10.0-android
+      PROJECT_PATH: src/Vicold.Pindoudou/Vicold.Pindoudou/Vicold.Pindoudou.csproj
+      FRAMEWORK: net10.0-android
+      OUTPUT_DIR: publish
 
     steps:
     - name: Checkout code
@@ -23,28 +27,32 @@ jobs:
       with:
         dotnet-version: 10.0.x
 
-    - name: Restore workloads
-      run: dotnet workload restore --project $env:Project_Path
+    # ⭐ MAUI 必须 install workload（restore 不够）
+    - name: Install MAUI workload
+      run: dotnet workload install maui
 
     - name: Restore dependencies
-      run: dotnet restore $env:Project_Path
+      run: dotnet restore $env:PROJECT_PATH
 
-    - name: Build project
-      run: dotnet build $env:Project_Path --configuration Release --no-restore --framework net10.0-android
+    # ⭐ Android 发布直接 publish 即可
+    - name: Publish Android Release
+      run: |
+        dotnet publish $env:PROJECT_PATH `
+          -c Release `
+          -f $env:FRAMEWORK `
+          -p:AndroidPackageFormat=apk `
+          -o $env:OUTPUT_DIR
 
-    - name: Publish Release (Android only)
-      run: dotnet publish $env:Project_Path --configuration Release --no-restore --output $env:Output_Dir --framework net10.0-android
-
-    - name: Upload Release Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Vicold.Pindoudou-Android-Release
-        path: ${{ env.Output_Dir }}\*.apk
+        path: ${{ env.OUTPUT_DIR }}\*.apk
 
-    - name: Upload to Release (if release event)
+    - name: Upload to GitHub Release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{ env.Output_Dir }}\*.apk
+        files: ${{ env.OUTPUT_DIR }}\*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
