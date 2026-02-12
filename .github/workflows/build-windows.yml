@@ -5,6 +5,9 @@ on:
     branches: [ "main", "action2" ]
   release:
     types: [ created ]
+  
+permissions:
+  contents: write
 
 jobs:
   build:
