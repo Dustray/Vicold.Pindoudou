@@ -2,7 +2,7 @@ name: Build Windows Release
 
 on:
   push:
-    branches: [ "main", "fix-action" ]
+    branches: [ "main", "action2" ]
   release:
     types: [ created ]
 
@@ -49,11 +49,8 @@ jobs:
 
     - name: Upload to Release (if release event)
       if: github.event_name == 'release'
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v2
+      with:
+        files: Vicold.Pindoudou_Windows_Release.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: Vicold.Pindoudou_Windows_Release.zip
-        asset_name: Vicold.Pindoudou_Windows_Release.zip
-        asset_content_type: application/zip
