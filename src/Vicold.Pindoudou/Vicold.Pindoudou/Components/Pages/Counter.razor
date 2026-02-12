@@ -181,7 +181,7 @@
                                                     >
                                                         @if (ShowCodes && PaletteColors != null)
                                                         {
-                                                            var code = PixelArtUtil.GetCodeByColor(PixelData[index], PaletteColors, HideTransparentCodes);
+                                                            var code = GetCodeByColorFast(PixelData[index], HideTransparentCodes);
                                                             if (!string.IsNullOrEmpty(code))
                                                             {
                                                                 var textColor = ColorUtil.GetContrastTextColor(PixelData[index]);
@@ -947,6 +947,7 @@
     private int Height { get; set; }
     private string Palette { get; set; } = "Mard";
     private Dictionary<string, string> PaletteColors { get; set; } = new Dictionary<string, string>();
+    private Dictionary<string, string> ReversePaletteColors { get; set; } = new Dictionary<string, string>(); // 反向映射：颜色 -> 代码
     private string SelectedColor { get; set; } = "#FFFFFF";
     private bool ShowCodes { get; set; } = true;
     private bool HideTransparentCodes { get; set; } = false;
@@ -956,71 +957,80 @@
     private Stack<string[]> UndoStack { get; set; } = new Stack<string[]>();
     private Stack<string[]> RedoStack { get; set; } = new Stack<string[]>();
     private bool IsSidebarCollapsed { get; set; } = false;
+    private System.Diagnostics.Stopwatch? EditStopwatch { get; set; } // 用于性能测量
+    private System.Threading.CancellationTokenSource? SaveDebounceToken { get; set; } // 防抖令牌
+    private const int SaveDebounceDelay = 1000; // 防抖延迟时间（毫秒）
 
     protected override async Task OnInitializedAsync()
     {
-        // 首先检查是否有保存的状态
-        var savedStateJson = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "counterState");
+        // 首先检查是否有导航数据（新生成的像素图）
+        var hasNavigationData = await LoadFromNavigationData();
         
-        if (!string.IsNullOrEmpty(savedStateJson))
+        // 如果没有导航数据，再检查是否有保存的状态
+        if (!hasNavigationData)
         {
-            try
+            var savedStateJson = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "counterState");
+            
+            if (!string.IsNullOrEmpty(savedStateJson))
             {
-                // 使用具体的类型而不是dynamic
-                var options = new System.Text.Json.JsonSerializerOptions
+                try
                 {
-                    PropertyNameCaseInsensitive = true
-                };
-                
-                var navigationData = System.Text.Json.JsonSerializer.Deserialize<NavigationData>(savedStateJson, options);
-                
-                if (navigationData != null)
-                {
-                    // 解析参数
-                    Width = navigationData.Width;
-                    Height = navigationData.Height;
-                    Palette = navigationData.Palette;
-                    
-                    // 解析像素数据
-                    var pixelDataString = navigationData.PixelData;
-                    if (!string.IsNullOrEmpty(pixelDataString))
+                    // 使用具体的类型而不是dynamic
+                    var options = new System.Text.Json.JsonSerializerOptions
                     {
-                        PixelData = pixelDataString.Split(',');
+                        PropertyNameCaseInsensitive = true
+                    };
+                    
+                    var navigationData = System.Text.Json.JsonSerializer.Deserialize<NavigationData>(savedStateJson, options);
+                    
+                    if (navigationData != null)
+                    {
+                        // 重置状态
+                        UndoStack.Clear();
+                        RedoStack.Clear();
+                        
+                        // 解析参数
+                        Width = navigationData.Width;
+                        Height = navigationData.Height;
+                        Palette = navigationData.Palette;
+                        
+                        // 解析像素数据
+                        var pixelDataString = navigationData.PixelData;
+                        if (!string.IsNullOrEmpty(pixelDataString))
+                        {
+                            PixelData = pixelDataString.Split(',');
+                        }
+                        
+                        // 解析调色板颜色
+                        var paletteColorsString = navigationData.CurrentPalette;
+                        PaletteColors.Clear();
+                        ReversePaletteColors.Clear();
+                        foreach (var color in paletteColorsString)
+                        {
+                            PaletteColors[color.Key] = color.Value; // code为key，color为value
+                            ReversePaletteColors[color.Value] = color.Key; // 反向映射：color为key，code为value
+                        }
+                        
+                        // 设置默认选择的颜色
+                        if (PaletteColors.Count > 0)
+                        {
+                            SelectedColor = PaletteColors.First().Value;
+                        }
                     }
                     
-                    // 解析调色板颜色
-                    var paletteColorsString = navigationData.CurrentPalette;
-                    foreach (var color in paletteColorsString)
-                    {
-                        PaletteColors[color.Key] = color.Value; // code为key，color为value
-                    }
-                    
-                    // 设置默认选择的颜色
-                    if (PaletteColors.Count > 0)
-                    {
-                        SelectedColor = PaletteColors.First().Value;
-                    }
+                    // 保留保存的状态，以便后续导航回来时仍能使用
+                    // 注意：不要清除 sessionStorage 中的数据
                 }
-                
-                // 保留保存的状态，以便后续导航回来时仍能使用
-                // 注意：不要清除 sessionStorage 中的数据
+                catch (Exception ex)
+                {
+                    // 错误处理
+                    Console.WriteLine($"Error parsing saved state: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                // 错误处理
-                Console.WriteLine($"Error parsing saved state: {ex.Message}");
-                // 如果解析失败，尝试从导航数据中获取
-                await LoadFromNavigationData();
-            }
-        }
-        else
-        {
-            // 如果没有保存的状态，尝试从导航数据中获取
-            await LoadFromNavigationData();
         }
     }
     
-    private async Task LoadFromNavigationData()
+    private async Task<bool> LoadFromNavigationData()
     {
         // 从 sessionStorage 中获取导航数据
         var jsonData = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "navigationData");
@@ -1029,6 +1039,9 @@
         {
             try
             {
+                // 清除 sessionStorage 中的导航数据（尽早清除，避免重复加载）
+                await JSRuntime.InvokeVoidAsync("sessionStorage.removeItem", "navigationData");
+                
                 // 使用具体的类型而不是dynamic
                 var options = new System.Text.Json.JsonSerializerOptions
                 {
@@ -1039,6 +1052,10 @@
                 
                 if (navigationData != null)
                 {
+                    // 重置状态
+                    UndoStack.Clear();
+                    RedoStack.Clear();
+                    
                     // 解析参数
                     Width = navigationData.Width;
                     Height = navigationData.Height;
@@ -1050,12 +1067,19 @@
                     {
                         PixelData = pixelDataString.Split(',');
                     }
+                    else
+                    {
+                        PixelData = Array.Empty<string>();
+                    }
                     
                     // 解析调色板颜色
                     var paletteColorsString = navigationData.CurrentPalette;
+                    PaletteColors.Clear();
+                    ReversePaletteColors.Clear();
                     foreach (var color in paletteColorsString)
                     {
                         PaletteColors[color.Key] = color.Value; // code为key，color为value
+                        ReversePaletteColors[color.Value] = color.Key; // 反向映射：color为key，code为value
                     }
                     
                     // 设置默认选择的颜色
@@ -1063,31 +1087,39 @@
                     {
                         SelectedColor = PaletteColors.First().Value;
                     }
+                    
+                    // 保存当前状态（使用非防抖版本，确保立即保存）
+                    await SaveCurrentStateImmediately();
+                    
+                    return true; // 成功加载导航数据
                 }
-                
-                // 清除 sessionStorage 中的导航数据
-                await JSRuntime.InvokeVoidAsync("sessionStorage.removeItem", "navigationData");
             }
             catch (Exception ex)
             {
                 // 错误处理
                 Console.WriteLine($"Error parsing navigation data: {ex.Message}");
-                // 如果解析失败，使用默认值
-                Width = 50;
-                Height = 50;
-                Palette = "Mard";
-                PaletteColors = new Dictionary<string, string>();
-                SelectedColor = "#FFFFFF";
             }
         }
-        else
+        
+        return false; // 没有导航数据或加载失败
+    }
+    
+    private async Task SaveCurrentStateImmediately()
+    {
+        // 立即保存状态，不使用防抖
+        if (PixelData != null && PixelData.Length > 0)
         {
-            // 如果没有数据，使用默认值
-            Width = 50;
-            Height = 50;
-            Palette = "Mard";
-            PaletteColors = new Dictionary<string, string>();
-            SelectedColor = "#FFFFFF";
+            var navigationData = new NavigationData
+            {
+                Width = Width,
+                Height = Height,
+                Palette = Palette,
+                PixelData = string.Join(",", PixelData),
+                CurrentPalette = PaletteColors
+            };
+            
+            var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
+            await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", "counterState", jsonData);
         }
     }
     
@@ -1156,33 +1188,60 @@
             return result;
         }
         
-        // 使用队列实现洪水填充
-        var queue = new Queue<(int, int)>();
-        queue.Enqueue((startX, startY));
+        // 使用扫描线填充算法（更高效）
+        var spanStack = new Stack<(int, int, bool, bool)>();
+        spanStack.Push((startX, startY, false, false));
         
-        while (queue.Count > 0)
+        while (spanStack.Count > 0)
         {
-            var (x, y) = queue.Dequeue();
+            var (x, y, leftCheck, rightCheck) = spanStack.Pop();
             
-            // 检查坐标是否有效
-            if (x < 0 || x >= Width || y < 0 || y >= Height)
+            // 向左扫描找到连续的目标颜色
+            int currentX = x;
+            while (currentX >= 0 && result[currentX + y * Width] == targetColor)
             {
-                continue;
+                currentX--;
             }
+            currentX++;
             
-            int index = y * Width + x;
+            bool spanAbove = false;
+            bool spanBelow = false;
             
-            // 检查当前像素颜色是否与目标颜色相同
-            if (result[index] == targetColor)
+            // 向右扫描并填充
+            while (currentX < Width && result[currentX + y * Width] == targetColor)
             {
                 // 设置新颜色
-                result[index] = newColor;
+                result[currentX + y * Width] = newColor;
                 
-                // 将上下左右四个方向的像素加入队列
-                queue.Enqueue((x - 1, y)); // 左
-                queue.Enqueue((x + 1, y)); // 右
-                queue.Enqueue((x, y - 1)); // 上
-                queue.Enqueue((x, y + 1)); // 下
+                // 检查上方
+                if (!spanAbove && y > 0 && result[currentX + (y - 1) * Width] == targetColor)
+                {
+                    if (!leftCheck)
+                    {
+                        spanStack.Push((currentX, y - 1, false, true));
+                        spanAbove = true;
+                    }
+                }
+                else if (spanAbove && y > 0 && result[currentX + (y - 1) * Width] != targetColor)
+                {
+                    spanAbove = false;
+                }
+                
+                // 检查下方
+                if (!spanBelow && y < Height - 1 && result[currentX + (y + 1) * Width] == targetColor)
+                {
+                    if (!rightCheck)
+                    {
+                        spanStack.Push((currentX, y + 1, true, false));
+                        spanBelow = true;
+                    }
+                }
+                else if (spanBelow && y < Height - 1 && result[currentX + (y + 1) * Width] != targetColor)
+                {
+                    spanBelow = false;
+                }
+                
+                currentX++;
             }
         }
         
@@ -1198,6 +1257,8 @@
     }
     
     private bool IsBatchEditing { get; set; } = false;
+    private DateTime LastEditTime { get; set; } = DateTime.MinValue;
+    private const int EditThrottleDelay = 50; // 节流延迟时间（毫秒）
     
     private async Task HandleMouseDown(int x, int y, MouseEventArgs e)
     {
@@ -1206,6 +1267,7 @@
         {
             IsBatchEditing = true;
             await EditPixel(x, y);
+            LastEditTime = DateTime.Now;
         }
         // 右键不做任何处理，让它触发zoomableContainer的拖动功能
     }
@@ -1219,7 +1281,13 @@
     {
         if (IsBatchEditing)
         {
-            await EditPixel(x, y);
+            // 节流：限制编辑操作的频率
+            var now = DateTime.Now;
+            if ((now - LastEditTime).TotalMilliseconds >= EditThrottleDelay)
+            {
+                await EditPixel(x, y);
+                LastEditTime = now;
+            }
         }
     }
     
@@ -1285,6 +1353,32 @@
         }
     }
     
+    /// <summary>
+    /// 根据颜色快速获取色号（使用反向映射）
+    /// </summary>
+    /// <param name="color">颜色值</param>
+    /// <param name="hideTransparentCodes">是否隐藏透明色代码</param>
+    /// <returns>颜色对应的代码</returns>
+    private string GetCodeByColorFast(string color, bool hideTransparentCodes)
+    {
+        // 检查是否需要隐藏透明色代码
+        if (hideTransparentCodes)
+        {
+            // #RRGGBBAA 格式，最后两位为00
+            if (color.Length == 9 && color.EndsWith("00", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+        }
+        
+        // 使用反向映射字典快速查找
+        if (ReversePaletteColors.TryGetValue(color, out var code))
+        {
+            return code;
+        }
+        return string.Empty;
+    }
+    
     private void ToggleSidebar()
     {
         IsSidebarCollapsed = !IsSidebarCollapsed;
@@ -1297,22 +1391,60 @@
         NavigationManager.NavigateTo("/");
     }
     
+    private async Task SaveCurrentStateDebounced()
+    {
+        // 取消之前的保存操作
+        if (SaveDebounceToken != null)
+        {
+            SaveDebounceToken.Cancel();
+            SaveDebounceToken.Dispose();
+        }
+        
+        // 创建新的取消令牌
+        SaveDebounceToken = new System.Threading.CancellationTokenSource();
+        var token = SaveDebounceToken.Token;
+        
+        try
+        {
+            // 延迟执行保存操作
+            await Task.Delay(SaveDebounceDelay, token);
+            
+            // 执行实际的保存操作
+            if (!token.IsCancellationRequested && PixelData != null && PixelData.Length > 0)
+            {
+                var navigationData = new NavigationData
+                {
+                    Width = Width,
+                    Height = Height,
+                    Palette = Palette,
+                    PixelData = string.Join(",", PixelData),
+                    CurrentPalette = PaletteColors
+                };
+                
+                var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
+                await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", "counterState", jsonData);
+                Console.WriteLine("State saved to sessionStorage");
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // 操作被取消，忽略
+        }
+        finally
+        {
+            // 直接释放令牌源，不需要比较
+            if (SaveDebounceToken != null)
+            {
+                SaveDebounceToken.Dispose();
+                SaveDebounceToken = null;
+            }
+        }
+    }
+    
     private async Task SaveCurrentState()
     {
-        if (PixelData != null && PixelData.Length > 0)
-        {
-            var navigationData = new NavigationData
-            {
-                Width = Width,
-                Height = Height,
-                Palette = Palette,
-                PixelData = string.Join(",", PixelData),
-                CurrentPalette = PaletteColors
-            };
-            
-            var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
-            await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", "counterState", jsonData);
-        }
+        // 对于编辑操作，使用防抖保存方法
+        await SaveCurrentStateDebounced();
     }
     
     private async Task ExportPixelArt()
@@ -1371,18 +1503,24 @@
                 
                 if (resourceData != null)
                 {
+                    // 重置状态
+                    UndoStack.Clear();
+                    RedoStack.Clear();
+                    
                     // 提取数据
                     Width = resourceData.Width;
                     Height = resourceData.Height;
-                    PixelData = resourceData.PixelData;
+                    PixelData = resourceData.PixelData ?? Array.Empty<string>();
                     
                     // 重建调色板
                     PaletteColors.Clear();
+                    ReversePaletteColors.Clear();
                     foreach (var colorItem in resourceData.Palette)
                     {
                         var name = colorItem.Name;
                         var color = colorItem.Color;
                         PaletteColors[name] = color;
+                        ReversePaletteColors[color] = name; // 反向映射：color为key，code为value
                     }
                     
                     // 设置默认选择的颜色
@@ -1393,8 +1531,8 @@
                     
                     Message = "资源文件打开成功";
                     
-                    // 保存当前状态
-                    await SaveCurrentState();
+                    // 保存当前状态（使用立即保存版本，不使用防抖）
+                    await SaveCurrentStateImmediately();
                 }
             }
             catch (Exception ex)

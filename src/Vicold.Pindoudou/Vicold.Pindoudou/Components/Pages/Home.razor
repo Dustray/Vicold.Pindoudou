@@ -375,6 +375,23 @@
             OriginalPixels = ImageUtil.GetPixelData(image);
             OriginalWidth = (int)image.Width;
             OriginalHeight = (int)image.Height;
+            
+            // 根据图片原始比例计算新的像素宽高，短边为50像素
+            if (OriginalWidth > 0 && OriginalHeight > 0)
+            {
+                if (OriginalWidth <= OriginalHeight)
+                {
+                    // 宽度是短边
+                    _pixelWidth = 50;
+                    _pixelHeight = (int)(OriginalHeight * 50.0 / OriginalWidth);
+                }
+                else
+                {
+                    // 高度是短边
+                    _pixelHeight = 50;
+                    _pixelWidth = (int)(OriginalWidth * 50.0 / OriginalHeight);
+                }
+            }
         }
         catch (Exception ex)
         {
