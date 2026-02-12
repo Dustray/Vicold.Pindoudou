@@ -7,254 +7,404 @@
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
 <div class="app-container" @onkeydown="HandleKeyDown" tabindex="0">
-    <header class="app-header">
-        <h1>拼豆图纸设计工具</h1>
-        <p class="app-subtitle">编辑和自定义您的像素艺术</p>
-    </header>
 
-    <div class="container mt-4">
-        <div class="row">
-            <!-- 左侧调色板 -->
-            <div class="col-md-4">
-                <div class="control-panel card shadow-sm">
-                    <div class="card-header">
-                        <h3>当前调色板</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="palette-display">
-                            @if (PaletteColors != null && PaletteColors.Count > 0)
-                            {
-                                <div class="compact-color-grid scrollable-palette">
-                                    @foreach (var kvp in PaletteColors)
-                                    {
-                                        var color = kvp.Value;
-                                        var code = kvp.Key;
-                                        var textColor = ColorUtil.GetContrastTextColor(color);
-                                        <div 
-                                            class="compact-color-item"
-                                            @onclick="() => SelectColor(color)"
-                                            title="点击选择颜色"
-                                        >
-                                            <div 
-                                                class="color-swatch" 
-                                                style="background-color: @color"
-                                            >
-                                                <div class="color-code" style="color: @textColor">@(@code)</div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <p class="text-center text-muted">没有可用的调色板颜色</p>
-                            }
-                        </div>
-                        
-                        <div class="mt-4">
-                            <h4>编辑工具</h4>
-                            <div class="form-group">
-                                <label class="d-block mb-2">当前选择的颜色:</label>
-                                <div class="color-preview" style="background-color: @SelectedColor">
-                                    <div class="color-code" style="color: @(ColorUtil.GetContrastTextColor(SelectedColor))">@(PaletteColors != null ? PixelArtUtil.GetCodeByColor(SelectedColor, PaletteColors, false) : string.Empty)</div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="d-block mb-2">工具:</label>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn @(CurrentTool == EditTool.Brush ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Brush">画笔</button>
-                                    <button type="button" class="btn @(CurrentTool == EditTool.Bucket ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Bucket">油漆桶</button>
-                                    <button type="button" class="btn @(CurrentTool == EditTool.Eraser ? "btn-primary" : "btn-outline-primary")" @onclick="() => CurrentTool = EditTool.Eraser">橡皮擦</button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="d-block mb-2">操作:</label>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-secondary" @onclick="Undo" title="撤销 (Ctrl+Z)">⬅</button>
-                                    <button type="button" class="btn btn-outline-secondary" @onclick="Redo" title="反撤销 (Ctrl+Y)">➡</button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group form-check">
-                                <input type="checkbox" class="form-check-input" id="showCodes" @bind="ShowCodes" />
-                                <label class="form-check-label" for="showCodes">显示代码</label>
-                            </div>
-                            
-                            <div class="form-group form-check">
-                                <input type="checkbox" class="form-check-input" id="hideTransparentCodes" @bind="HideTransparentCodes" />
-                                <label class="form-check-label" for="hideTransparentCodes">隐藏透明色代码</label>
-                            </div>
-                            
-                            <div class="d-flex gap-2 mt-3">
-                                <button class="btn btn-primary flex-fill" @onclick="ExportPixelArt">导出图片</button>
-                                <button class="btn btn-primary flex-fill" @onclick="SaveResource">保存资源</button>
-                                <button class="btn btn-success flex-fill" @onclick="OpenResource">打开资源</button>
-                                <button class="btn btn-secondary flex-fill" @onclick="GoBack">返回</button>
-                            </div>
-                        </div>
-                     @if (!string.IsNullOrEmpty(Message))
-                    {
-                        <div class="alert alert-info" role="alert">
-                            @Message
-                        </div>
-                    }
+    <!-- 右侧控制面板 -->
+    <aside class="control-sidebar @(IsSidebarCollapsed ? "collapsed" : "")">
+        <div class="sidebar-header">
+            <button class="collapse-btn" @onclick="ToggleSidebar" title="@(IsSidebarCollapsed ? "展开" : "折叠")">
+                @(IsSidebarCollapsed ? "◀" : "▶")
+            </button>
+            <h3>控制面板</h3>
+        </div>
+        <div class="control-panel">
+            <!-- 工具选择 -->
+            <div class="panel-section">
+                <h4>工具</h4>
+                <div class="tool-buttons">
+                    <button class="tool-btn @(CurrentTool == EditTool.Brush ? "active" : "")" @onclick="() => CurrentTool = EditTool.Brush">
+                        <div class="tool-icon">🖌️</div>
+                        <div class="tool-name">画笔</div>
+                    </button>
+                    <button class="tool-btn @(CurrentTool == EditTool.Bucket ? "active" : "")" @onclick="() => CurrentTool = EditTool.Bucket">
+                        <div class="tool-icon">🪣</div>
+                        <div class="tool-name">油漆桶</div>
+                    </button>
+                    <button class="tool-btn @(CurrentTool == EditTool.Eraser ? "active" : "")" @onclick="() => CurrentTool = EditTool.Eraser">
+                        <div class="tool-icon">🧽</div>
+                        <div class="tool-name">橡皮擦</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 颜色预览 -->
+            <div class="panel-section">
+                <h4>当前颜色</h4>
+                <div class="color-preview-container">
+                    <div class="color-preview" style="background-color: @SelectedColor;">
+                        <span style="color: @ColorUtil.GetContrastTextColor(SelectedColor); font-weight: bold;">
+                            @SelectedColor
+                        </span>
                     </div>
                 </div>
             </div>
-            
-            <!-- 右侧像素图编辑区域 -->
-            <div class="col-md-8">
-                <div class="preview-panel card shadow-sm">
-                    <div class="card-header">
-                        <h3>像素图编辑</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="edit-container">
-                            @if (PixelData != null && PixelData.Length > 0)
+
+            <!-- 调色板 -->
+            <div class="panel-section">
+                <h4>调色板</h4>
+                <div class="palette-display">
+                    <div class="scrollable-palette">
+                        @if (PaletteColors != null)
+                        {
+                            @foreach (var color in PaletteColors)
                             {
-                                <div class="zoomable-container" id="zoomableContainer" @onmouseleave="StopDrawing">
-                                    <div class="zoomable-content" id="zoomableContent" style="transform-origin: 0 0;">
-                                        <div class="pixel-art">
-                                            @for (int y = 0; y < Height; y++)
-                                            {
-                                                <div class="pixel-row">
-                                                    @for (int x = 0; x < Width; x++)
-                                                    {
-                                                        var currentX = x;
-                                                        var currentY = y;
-                                                        var index = y * Width + x;
-                                                        if (index < PixelData.Length)
-                                                        {
-                                                            <div 
-                                                                class="pixel" 
-                                                                style="background-color: @PixelData[index]"
-                                                                @onmousedown="(e) => HandleMouseDown(currentX, currentY, e)"
-                                                                @onmousedown:preventDefault="true"
-                                                                @onmouseup="StopDrawing"
-                                                                @onmouseover="() => DrawIfMouseDown(currentX, currentY)"
-                                                                title="@PixelData[index]"
-                                                            >
-                                                                @if (ShowCodes && PaletteColors != null)
-                                                                {
-                                                                    var code = PixelArtUtil.GetCodeByColor(PixelData[index], PaletteColors, HideTransparentCodes);
-                                                                    if (!string.IsNullOrEmpty(code))
-                                                                    {
-                                                                        var textColor = ColorUtil.GetContrastTextColor(PixelData[index]);
-                                                                        <div class="color-number-in-pixel" style="color: @textColor">
-                                                                            @(code)
-                                                                        </div>
-                                                                    }
-                                                                }
-                                                            </div>
-                                                        }
-                                                    }
-                                                </div>
-                                            }
+                                <div 
+                                    class="compact-color-item" 
+                                    @onclick="() => SelectColor(color.Value)"
+                                    title="@color.Key: @color.Value"
+                                >
+                                    <div 
+                                        class="color-swatch" 
+                                        style="background-color: @color.Value"
+                                    >
+                                        <div class="color-code" style="color: @ColorUtil.GetContrastTextColor(color.Value)">
+                                            @color.Key
                                         </div>
                                     </div>
                                 </div>
                             }
-                            else
-                            {
-                                <div class="empty-state">
-                                    <div class="empty-icon">🎨</div>
-                                    <div class="empty-text">没有可编辑的像素图</div>
-                                    <div class="empty-subtext">请先在主页生成像素图</div>
-                                </div>
-                            }
-                        </div>
+                        }
                     </div>
                 </div>
             </div>
+
+            <!-- 操作按钮 -->
+            <div class="panel-section">
+                <h4>操作</h4>
+                <div class="action-buttons">
+                    <button class="action-btn" @onclick="Undo" title="撤销 (Ctrl+Z)">
+                        <div class="action-icon">↶</div>
+                        <div class="action-name">撤销</div>
+                    </button>
+                    <button class="action-btn" @onclick="Redo" title="重做 (Ctrl+Y)">
+                        <div class="action-icon">↷</div>
+                        <div class="action-name">重做</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 选项设置 -->
+            <div class="panel-section">
+                <h4>选项</h4>
+                <div class="checkbox-group">
+                    <label class="form-check">
+                        <input type="checkbox" class="form-check-input" @bind="ShowCodes">
+                        <span class="form-check-label">显示颜色代码</span>
+                    </label>
+                    <label class="form-check">
+                        <input type="checkbox" class="form-check-input" @bind="HideTransparentCodes">
+                        <span class="form-check-label">隐藏透明代码</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 主要按钮 -->
+            <div class="panel-section">
+                <div class="main-buttons">
+                    <button class="main-btn export" @onclick="ExportPixelArt">
+                        <div class="btn-icon">📤</div>
+                        <div class="btn-text">导出图片</div>
+                    </button>
+                    <button class="main-btn save" @onclick="SaveResource">
+                        <div class="btn-icon">💾</div>
+                        <div class="btn-text">保存资源</div>
+                    </button>
+                    <button class="main-btn open" @onclick="OpenResource">
+                        <div class="btn-icon">📁</div>
+                        <div class="btn-text">导入资源</div>
+                    </button>
+                    <button class="main-btn back" @onclick="GoBack">
+                        <div class="btn-icon">⬅️</div>
+                        <div class="btn-text">返回主页</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 消息提示 -->
+            @if (!string.IsNullOrEmpty(Message))
+            {
+                <div class="message-alert">
+                    @Message
+                </div>
+            }
         </div>
-    </div>
+    </aside>
+
+    <!-- 浮动展开按钮 -->
+    @if (IsSidebarCollapsed)
+    {
+        <button class="floating-expand-btn" @onclick="ToggleSidebar" title="展开控制面板">
+            🎨
+        </button>
+    }
+
+    <!-- 像素图编辑区域 - 占据所有空间 -->
+    <section class="edit-area @(IsSidebarCollapsed ? "collapsed" : "")">
+        <div class="edit-panel">
+            <div class="panel-header">
+                <h3>像素图编辑</h3>
+                <div class="panel-info">
+                    <span class="pixel-size">尺寸: @Width × @Height</span>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="edit-container">
+                    @if (PixelData != null && PixelData.Length > 0)
+                    {
+                        <div class="zoomable-container" id="zoomableContainer" @onmouseleave="StopDrawing">
+                            <div class="zoomable-content" id="zoomableContent" style="transform-origin: 0 0;">
+                                <div class="pixel-art">
+                                    @for (int y = 0; y < Height; y++)
+                                    {
+                                        <div class="pixel-row">
+                                            @for (int x = 0; x < Width; x++)
+                                            {
+                                                var currentX = x;
+                                                var currentY = y;
+                                                var index = y * Width + x;
+                                                if (index < PixelData.Length)
+                                                {
+                                                    <div 
+                                                        class="pixel" 
+                                                        style="background-color: @PixelData[index]"
+                                                        @onmousedown="(e) => HandleMouseDown(currentX, currentY, e)"
+                                                        @onmousedown:preventDefault="true"
+                                                        @onmouseup="StopDrawing"
+                                                        @onmouseover="() => DrawIfMouseDown(currentX, currentY)"
+                                                        title="@PixelData[index]"
+                                                    >
+                                                        @if (ShowCodes && PaletteColors != null)
+                                                        {
+                                                            var code = PixelArtUtil.GetCodeByColor(PixelData[index], PaletteColors, HideTransparentCodes);
+                                                            if (!string.IsNullOrEmpty(code))
+                                                            {
+                                                                var textColor = ColorUtil.GetContrastTextColor(PixelData[index]);
+                                                                <div class="color-number-in-pixel" style="color: @textColor">
+                                                                    @(code)
+                                                                </div>
+                                                            }
+                                                        }
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <div class="empty-icon">🎨</div>
+                            <div class="empty-text">没有可编辑的像素图</div>
+                            <div class="empty-subtext">请先在主页生成像素图或点击导入素材</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 
 <style>
-    /* 编辑容器样式 */
-    .edit-container {
-        border: 2px dashed #dee2e6;
-        padding: 20px;
-        min-height: 700px;
-        text-align: center;
-        background-color: #ffffff;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .edit-container:hover {
-        border-color: #667eea;
-        background-color: #f8f9ff;
-    }
-    
-    /* 缩放容器样式 */
-    .zoomable-container {
-        width: 100%;
-        height: 650px;
-        overflow: hidden;
-        position: relative;
-        background-color: #fff;
-        border: 1px solid #eee;
-        cursor: grab;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .zoomable-container:active {
-        cursor: grabbing;
-    }
-    
-    .zoomable-content {
-        position: absolute;
-        top: 0;
-        left: 0;
-        transform: scale(1);
-        transition: transform 0.1s ease;
-    }
-    
-    /* 像素艺术样式 */
-    .pixel-art {
+    /* 全局样式重置 */
+    * {
         margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
     
-    .pixel {
-        width: 20px;
-        height: 20px;
-        border: 1px solid #e0e0e0;
-        cursor: pointer;
-        box-sizing: border-box;
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    /* 应用容器样式 */
+    .app-container {
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        height: 100vh;
+        padding: 0px;
+    }
+    
+    .app-container > header {
+        flex-shrink: 0;
+    }
+    
+    .app-container > aside {
+        position: fixed;
+        right: 0;
+        top: 60px;
+        bottom: 0;
+        z-index: 90;
+        transition: transform 0.3s ease;
+    }
+    
+    .app-container > section {
+        flex: 1;
+        transition: margin-left 0.3s ease;
+        overflow: hidden;
+    }
+    
+    /* 头部样式 */
+    .app-header {
+        background-color: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 0.8rem 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    
+    .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        text-align: center;
+    }
+    
+    .app-header h1 {
+        color: #667eea;
+        font-size: 1.5rem;
+        margin-bottom: 0;
+        font-weight: 700;
+    }
+    
+    .app-subtitle {
+        color: #666;
+        font-size: 0.9rem;
+        font-weight: 400;
+    }
+    
+    /* 右侧控制面板 */
+    .control-sidebar {
+        width: 320px;
+        background-color: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 12px 0 0 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        height: calc(100vh - 60px);
+        overflow-y: auto;
+        transform: translateX(0);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .control-sidebar:hover {
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .control-sidebar.collapsed {
+        transform: translateX(100%);
+    }
+    
+    .sidebar-header {
         display: flex;
         align-items: center;
-        justify-content: center;
-        position: relative;
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
     
-    .pixel:hover {
-        border: 1px solid #667eea;
-        transform: scale(1.05);
-        z-index: 1;
+    .collapse-btn {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: #667eea;
+        padding: 0.5rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .collapse-btn:hover {
+        background-color: #f0f4ff;
+        transform: scale(1.1);
+    }
+    
+    /* 浮动展开按钮 */
+    .floating-expand-btn {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        z-index: 100;
+    }
+    
+    .floating-expand-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+    }
+    
+    .control-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .panel-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .panel-section h3 {
+        color: #333;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .panel-section h4 {
+        color: #333;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f0f0f0;
     }
     
     /* 调色板样式 */
     .palette-display {
         border: 1px solid #e9ecef;
-        padding: 10px;
+        padding: 1rem;
         background-color: #f8f9fa;
         border-radius: 8px;
-        margin-bottom: 20px;
-        max-height: 400px;
         overflow: hidden;
     }
     
     .scrollable-palette {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        justify-content: flex-start;
-        max-height: 380px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+        max-height: 400px;
         overflow-y: auto;
         padding-right: 5px;
     }
@@ -280,17 +430,19 @@
     
     .compact-color-item {
         cursor: pointer;
-        margin-bottom: 4px;
         transition: all 0.2s ease;
+        border-radius: 4px;
+        overflow: hidden;
     }
     
     .compact-color-item:hover {
         transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
     
     .color-swatch {
-        width: 40px;
-        height: 40px;
+        width: 100%;
+        height: 30px;
         border: 2px solid #e0e0e0;
         border-radius: 4px;
         transition: all 0.2s ease;
@@ -302,68 +454,387 @@
     
     .compact-color-item:hover .color-swatch {
         border: 2px solid #667eea;
-        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
         transform: scale(1.05);
     }
 
     .color-code {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: bold;
         text-align: center;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
-
-    /* 固定右侧编辑区域 */
-    @@media (min-width: 768px) {
-        .col-md-8 {
-            position: sticky;
-            top: 20px;
-            align-self: flex-start;
-        }
-    }
-
-    .color-number-in-pixel {
-        font-size: 9px;
-        color: #333;
-        text-align: center;
-        width: 100%;
-        font-weight: bold;
-        line-height: 1;
-        margin: 0;
-        padding: 0;
+    
+    /* 工具部分样式 */
+    .tool-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
     }
     
-    /* 颜色预览样式 */
+    .tool-label {
+        color: #666;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .color-preview-container {
+        display: flex;
+        align-items: center;
+    }
+    
     .color-preview {
-        width: 80px;
-        height: 50px;
+        width: 100%;
+        height: 60px;
         border: 2px solid #e0e0e0;
-        margin-right: 10px;
-        border-radius: 6px;
+        border-radius: 8px;
         transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
+        background-color: #fff;
     }
     
     .color-preview:hover {
         border-color: #667eea;
-        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        transform: scale(1.02);
     }
     
-    /* 表单元素样式 */
-    .form-control-color {
-        width: 80px;
-        height: 50px;
-        padding: 0;
+    /* 工具按钮样式 */
+    .tool-buttons {
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .tool-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #666;
+    }
+    
+    .tool-btn:hover {
+        border-color: #667eea;
+        background-color: #f0f4ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .tool-btn.active {
+        border-color: #667eea;
+        background-color: #667eea;
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .tool-icon {
+        font-size: 1.5rem;
+    }
+    
+    .tool-name {
+        font-size: 0.85rem;
+    }
+    
+    /* 操作按钮样式 */
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .action-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background-color: #f8f9fa;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #666;
+    }
+    
+    .action-btn:hover {
+        border-color: #667eea;
+        background-color: #f0f4ff;
+        transform: translateY(-2px);
+    }
+    
+    .action-icon {
+        font-size: 1rem;
+    }
+    
+    .action-name {
+        font-size: 0.85rem;
+    }
+    
+    /* 复选框组样式 */
+    .checkbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
         border-radius: 6px;
-        border: 2px solid #ced4da;
+        padding: 0px 50px;
+        transition: background-color 0.2s ease;
+        position: relative;
+    }
+    
+    .form-check:hover {
+        background-color: #f0f4ff;
+    }
+    
+    .form-check-input {
+        width: 16px;
+        height: 16px;
+        accent-color: #667eea;
+        z-index: 100;
+        position: relative;
+        margin: 0;
+        flex-shrink: 0;
+    }
+    
+    .form-check-label {
+        font-size: 0.9rem;
+        color: #666;
+        cursor: pointer;
+        flex: 1;
+    }
+    
+    /* 主按钮样式 */
+    .main-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .main-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: white;
+    }
+    
+    .main-btn.export {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .main-btn.save {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    .main-btn.open {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    .main-btn.back {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #666;
+    }
+    
+    .main-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-icon {
+        font-size: 1.1rem;
+    }
+    
+    .btn-text {
+        font-size: 0.95rem;
+    }
+    
+    /* 消息提示样式 */
+    .message-alert {
+        background-color: #f0f4ff;
+        border-left: 4px solid #667eea;
+        padding: 1rem;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.9rem;
+        color: #333;
+        font-weight: 500;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* 编辑区域 */
+    .edit-area {
+        flex: 1;
+        background-color: #f8f9ff;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .edit-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 1.5rem;
+        box-sizing: border-box;
+    }
+    
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .panel-header h3 {
+        color: #333;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    .panel-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .pixel-size {
+        background-color: #f0f4ff;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 500;
+        color: #667eea;
+    }
+    
+    .panel-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    /* 编辑容器样式 */
+    .edit-container {
+        width: 100%;
+        height: 100%;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #ffffff;
         transition: all 0.3s ease;
     }
 
-    .form-control-color:hover {
+    .edit-container:hover {
         border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background-color: #f8f9ff;
+    }
+    
+    /* 缩放容器样式 */
+    .zoomable-container {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        position: relative;
+        background-color: #fff;
+        border: 1px solid #eee;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        cursor: grab;
+    }
+    
+    .zoomable-container:active {
+        cursor: grabbing;
+    }
+    
+    .zoomable-content {
+        position: relative;
+        transform-origin: 0 0;
+        transition: transform 0.1s ease;
+        margin: 0 auto;
+        display: inline-block;
+    }
+    
+    /* 像素艺术样式 */
+    .pixel-art {
+        margin: 0;
+        display: inline-block;
+    }
+    
+    .pixel-row {
+        display: flex;
+    }
+    
+    .pixel {
+        width: 24px;
+        height: 24px;
+        border: 1px solid #e0e0e0;
+        cursor: pointer;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    
+    .pixel:hover {
+        border: 1px solid #667eea;
+        transform: scale(1.1);
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .color-number-in-pixel {
+        font-size: 10px;
+        font-weight: bold;
+        text-align: center;
+        width: 100%;
+        line-height: 1;
+        margin: 0;
+        padding: 0;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
     
     /* 空状态样式 */
@@ -373,52 +844,95 @@
         align-items: center;
         justify-content: center;
         height: 100%;
-        min-height: 500px;
         color: #999;
         text-align: center;
+        gap: 1.5rem;
     }
 
     .empty-icon {
-        font-size: 5rem;
-        margin-bottom: 20px;
+        font-size: 6rem;
         opacity: 0.6;
+        animation: bounce 2s infinite;
+    }
+
+    @@keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-20px);
+        }
+        60% {
+            transform: translateY(-10px);
+        }
     }
 
     .empty-text {
-        font-size: 1.2rem;
-        margin-bottom: 10px;
-        font-weight: 500;
+        font-size: 1.3rem;
+        font-weight: 600;
         color: #666;
     }
 
     .empty-subtext {
         font-size: 1rem;
         color: #999;
+        max-width: 300px;
     }
-
+    
     /* 响应式设计 */
     @@media (max-width: 768px) {
-        .edit-container {
-            min-height: 500px;
-            padding: 15px;
+        .control-sidebar {
+            transform: translateX(100%);
         }
-
-        .zoomable-container {
-            height: 450px;
+        
+        .control-sidebar.collapsed {
+            transform: translateX(270px);
         }
-
+        
+        .edit-area {
+            margin-right: 0;
+        }
+        
+        .edit-area.collapsed {
+            margin-right: 50px;
+        }
+        
+        .app-header {
+            padding: 0.6rem 0;
+        }
+        
+        .app-header h1 {
+            font-size: 1.3rem;
+        }
+        
+        .control-sidebar {
+            top: 50px;
+            height: calc(100vh - 50px);
+        }
+        
+        .edit-area {
+            height: calc(100vh - 50px);
+        }
+        
+        .scrollable-palette {
+            grid-template-columns: repeat(5, 1fr);
+        }
+        
+        .tool-buttons {
+            flex-direction: column;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
         .pixel {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
         }
-
-        .compact-color-item {
-            width: 40px;
-        }
-
-        .color-swatch {
-            width: 30px;
-            height: 30px;
+        
+        .edit-container {
+            padding: 1rem;
         }
     }
 </style>
@@ -444,6 +958,7 @@
     private EditTool CurrentTool { get; set; } = EditTool.Brush;
     private Stack<string[]> UndoStack { get; set; } = new Stack<string[]>();
     private Stack<string[]> RedoStack { get; set; } = new Stack<string[]>();
+    private bool IsSidebarCollapsed { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -561,8 +1076,8 @@
                 // 错误处理
                 Console.WriteLine($"Error parsing navigation data: {ex.Message}");
                 // 如果解析失败，使用默认值
-                Width = 20;
-                Height = 20;
+                Width = 50;
+                Height = 50;
                 Palette = "Mard";
                 PaletteColors = new Dictionary<string, string>();
                 SelectedColor = "#FFFFFF";
@@ -571,8 +1086,8 @@
         else
         {
             // 如果没有数据，使用默认值
-            Width = 20;
-            Height = 20;
+            Width = 50;
+            Height = 50;
             Palette = "Mard";
             PaletteColors = new Dictionary<string, string>();
             SelectedColor = "#FFFFFF";
@@ -771,6 +1286,11 @@
         {
             await Redo();
         }
+    }
+    
+    private void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
     }
     
     private async Task GoBack()
