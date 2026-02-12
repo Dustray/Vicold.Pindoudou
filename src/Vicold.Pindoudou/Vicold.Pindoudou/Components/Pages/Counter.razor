@@ -447,7 +447,70 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 从 sessionStorage 中获取数据
+        // 首先检查是否有保存的状态
+        var savedStateJson = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "counterState");
+        
+        if (!string.IsNullOrEmpty(savedStateJson))
+        {
+            try
+            {
+                // 使用具体的类型而不是dynamic
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                var navigationData = System.Text.Json.JsonSerializer.Deserialize<NavigationData>(savedStateJson, options);
+                
+                if (navigationData != null)
+                {
+                    // 解析参数
+                    Width = navigationData.Width;
+                    Height = navigationData.Height;
+                    Palette = navigationData.Palette;
+                    
+                    // 解析像素数据
+                    var pixelDataString = navigationData.PixelData;
+                    if (!string.IsNullOrEmpty(pixelDataString))
+                    {
+                        PixelData = pixelDataString.Split(',');
+                    }
+                    
+                    // 解析调色板颜色
+                    var paletteColorsString = navigationData.CurrentPalette;
+                    foreach (var color in paletteColorsString)
+                    {
+                        PaletteColors[color.Key] = color.Value; // code为key，color为value
+                    }
+                    
+                    // 设置默认选择的颜色
+                    if (PaletteColors.Count > 0)
+                    {
+                        SelectedColor = PaletteColors.First().Value;
+                    }
+                }
+                
+                // 保留保存的状态，以便后续导航回来时仍能使用
+                // 注意：不要清除 sessionStorage 中的数据
+            }
+            catch (Exception ex)
+            {
+                // 错误处理
+                Console.WriteLine($"Error parsing saved state: {ex.Message}");
+                // 如果解析失败，尝试从导航数据中获取
+                await LoadFromNavigationData();
+            }
+        }
+        else
+        {
+            // 如果没有保存的状态，尝试从导航数据中获取
+            await LoadFromNavigationData();
+        }
+    }
+    
+    private async Task LoadFromNavigationData()
+    {
+        // 从 sessionStorage 中获取导航数据
         var jsonData = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "navigationData");
         
         if (!string.IsNullOrEmpty(jsonData))
@@ -490,7 +553,7 @@
                     }
                 }
                 
-                // 清除 sessionStorage 中的数据
+                // 清除 sessionStorage 中的导航数据
                 await JSRuntime.InvokeVoidAsync("sessionStorage.removeItem", "navigationData");
             }
             catch (Exception ex)
@@ -516,7 +579,7 @@
         }
     }
     
-    private void EditPixel(int x, int y)
+    private async Task EditPixel(int x, int y)
     {
         string targetColor = SelectedColor;
         if (CurrentTool == EditTool.Eraser)
@@ -554,6 +617,9 @@
             PixelData = newPixelData;
             Console.WriteLine($"PixelData updated successfully");
             Message += " - 成功";
+            
+            // 保存当前状态
+            await SaveCurrentState();
         }
         else
         {
@@ -621,13 +687,13 @@
     
     private bool IsBatchEditing { get; set; } = false;
     
-    private void HandleMouseDown(int x, int y, MouseEventArgs e)
+    private async Task HandleMouseDown(int x, int y, MouseEventArgs e)
     {
         // 左键开始批量修改
         if (e.Button == 0)
         {
             IsBatchEditing = true;
-            EditPixel(x, y);
+            await EditPixel(x, y);
         }
         // 右键不做任何处理，让它触发zoomableContainer的拖动功能
     }
@@ -637,15 +703,15 @@
         IsBatchEditing = false;
     }
     
-    private void DrawIfMouseDown(int x, int y)
+    private async Task DrawIfMouseDown(int x, int y)
     {
         if (IsBatchEditing)
         {
-            EditPixel(x, y);
+            await EditPixel(x, y);
         }
     }
     
-    private void Undo()
+    private async Task Undo()
     {
         if (UndoStack.Count > 0 && PixelData != null)
         {
@@ -658,6 +724,9 @@
             PixelData = UndoStack.Pop();
             Message = "撤销操作成功";
             Console.WriteLine("Undo operation performed");
+            
+            // 保存当前状态
+            await SaveCurrentState();
         }
         else
         {
@@ -666,7 +735,7 @@
         }
     }
     
-    private void Redo()
+    private async Task Redo()
     {
         if (RedoStack.Count > 0 && PixelData != null)
         {
@@ -679,6 +748,9 @@
             PixelData = RedoStack.Pop();
             Message = "反撤销操作成功";
             Console.WriteLine("Redo operation performed");
+            
+            // 保存当前状态
+            await SaveCurrentState();
         }
         else
         {
@@ -687,23 +759,43 @@
         }
     }
     
-    private void HandleKeyDown(KeyboardEventArgs e)
+    private async Task HandleKeyDown(KeyboardEventArgs e)
     {
         // 处理Ctrl+Z撤销操作
         if (e.CtrlKey && e.Key == "z")
         {
-            Undo();
+            await Undo();
         }
         // 处理Ctrl+Y反撤销操作
         else if (e.CtrlKey && e.Key == "y")
         {
-            Redo();
+            await Redo();
         }
     }
     
-    private void GoBack()
+    private async Task GoBack()
     {
+        // 保存当前状态到 sessionStorage
+        await SaveCurrentState();
         NavigationManager.NavigateTo("/");
+    }
+    
+    private async Task SaveCurrentState()
+    {
+        if (PixelData != null && PixelData.Length > 0)
+        {
+            var navigationData = new NavigationData
+            {
+                Width = Width,
+                Height = Height,
+                Palette = Palette,
+                PixelData = string.Join(",", PixelData),
+                CurrentPalette = PaletteColors
+            };
+            
+            var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
+            await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", "counterState", jsonData);
+        }
     }
     
     private async Task ExportPixelArt()
@@ -783,6 +875,9 @@
                     }
                     
                     Message = "资源文件打开成功";
+                    
+                    // 保存当前状态
+                    await SaveCurrentState();
                 }
             }
             catch (Exception ex)
