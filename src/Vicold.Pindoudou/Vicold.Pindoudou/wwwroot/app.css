@@ -1,3 +1,38 @@
+/* 修改Bootstrap默认颜色 */
+:root {
+    /* 主色调 - 深蓝色 */
+    --bs-primary: #16358a;
+    --bs-primary-rgb: 30, 58, 138;
+    --bs-primary-text-emphasis: #0F1E47;
+    --bs-primary-bg-subtle: #E0E7FF;
+    --bs-primary-border-subtle: #93C5FD;
+    
+    /* 成功色 - 深绿色 */
+    --bs-success: #15803D;
+    --bs-success-rgb: 21, 128, 61;
+    --bs-success-text-emphasis: #064E3B;
+    --bs-success-bg-subtle: #D1FAE5;
+    --bs-success-border-subtle: #6EE7B7;
+    
+    /* 次要色 - 深紫色 */
+    --bs-secondary: #410585;
+    --bs-secondary-rgb: 76, 29, 149;
+    --bs-secondary-text-emphasis: #2E1065;
+    --bs-secondary-bg-subtle: #EDE9FE;
+    --bs-secondary-border-subtle: #C4B5FD;
+    
+    /* 其他颜色 */
+    --bs-blue: #3B82F6;
+    --bs-indigo: #6366F1;
+    --bs-purple: #8B5CF6;
+    --bs-pink: #EC4899;
+    --bs-red: #EF4444;
+    --bs-orange: #F97316;
+    --bs-yellow: #EAB308;
+    --bs-teal: #14B8A6;
+    --bs-cyan: #06B6D4;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
