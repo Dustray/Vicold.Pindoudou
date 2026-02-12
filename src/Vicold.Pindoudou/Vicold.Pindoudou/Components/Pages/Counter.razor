@@ -1,4 +1,4 @@
-﻿@page "/counter"
+@page "/counter"
 @using System.Threading.Tasks
 @using System.Collections.Generic
 @using Vicold.Pindoudou.Entities
@@ -171,78 +171,6 @@
 </div>
 
 <style>
-    /* 全局样式 */
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f5f7fa;
-        color: #333;
-    }
-
-    /* 应用容器 */
-    .app-container {
-        min-height: 100vh;
-        padding: 20px 0;
-    }
-
-    /* 头部样式 */
-    .app-header {
-        text-align: center;
-        margin-bottom: 30px;
-        padding: 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin: 0 15px;
-    }
-
-    .app-header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-        font-weight: 700;
-    }
-
-    .app-subtitle {
-        font-size: 1.1rem;
-        opacity: 0.9;
-    }
-
-    /* 控制面板样式 */
-    .control-panel {
-        border-radius: 10px;
-        overflow: hidden;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .control-panel:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .control-panel .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #e9ecef;
-        font-weight: 600;
-    }
-
-    /* 预览面板样式 */
-    .preview-panel {
-        border-radius: 10px;
-        overflow: hidden;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .preview-panel:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .preview-panel .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #e9ecef;
-        font-weight: 600;
-    }
-
     /* 编辑容器样式 */
     .edit-container {
         border: 2px dashed #dee2e6;
@@ -287,10 +215,6 @@
     /* 像素艺术样式 */
     .pixel-art {
         margin: 0;
-    }
-    
-    .pixel-row {
-        display: flex;
     }
     
     .pixel {
@@ -426,17 +350,6 @@
     }
     
     /* 表单元素样式 */
-    .form-control {
-        border-radius: 6px;
-        border: 1px solid #ced4da;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .form-control:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-
     .form-control-color {
         width: 80px;
         height: 50px;
@@ -449,32 +362,6 @@
     .form-control-color:hover {
         border-color: #667eea;
         box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    
-    /* 按钮样式 */
-    .btn {
-        border-radius: 6px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        font-weight: 600;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-secondary {
-        font-weight: 600;
-    }
-
-    .btn-secondary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     
     /* 空状态样式 */
@@ -509,28 +396,6 @@
 
     /* 响应式设计 */
     @@media (max-width: 768px) {
-        .app-header h1 {
-            font-size: 2rem;
-        }
-
-        .app-subtitle {
-            font-size: 1rem;
-        }
-
-        .app-container {
-            padding: 10px 0;
-        }
-
-        .app-header {
-            margin: 0 10px;
-            padding: 15px;
-        }
-
-        .col-md-4,
-        .col-md-8 {
-            margin-bottom: 20px;
-        }
-
         .edit-container {
             min-height: 500px;
             padding: 15px;
