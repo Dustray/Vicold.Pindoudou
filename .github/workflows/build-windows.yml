@@ -2,7 +2,7 @@ name: Build Windows Release
 
 on:
   push:
-    branches: [ "main", "action3" ]
+    branches: [ "main"]
   release:
     types: [ created ]
   
