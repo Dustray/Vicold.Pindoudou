@@ -48,14 +48,13 @@ jobs:
         name: Android-Release
         path: |
           **/*.apk
-          **/*.aab
 
     - name: Upload to GitHub Release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          **/*.apk
-          **/*.aab
+          **/bin/Release/net10.0-android/*-Signed.apk
+        overwrite_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
