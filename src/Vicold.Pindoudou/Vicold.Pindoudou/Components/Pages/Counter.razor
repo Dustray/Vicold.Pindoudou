@@ -89,6 +89,8 @@
                             
                             <div class="d-flex gap-2 mt-3">
                                 <button class="btn btn-primary flex-fill" @onclick="ExportPixelArt">导出图片</button>
+                                <button class="btn btn-primary flex-fill" @onclick="SaveResource">保存资源</button>
+                                <button class="btn btn-success flex-fill" @onclick="OpenResource">打开资源</button>
                                 <button class="btn btn-secondary flex-fill" @onclick="GoBack">返回</button>
                             </div>
                         </div>
@@ -710,6 +712,101 @@
         {
             await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, PixelData, PaletteColors, ShowCodes, HideTransparentCodes);
         }
+    }
+    
+    private async Task SaveResource()
+    {
+        if (PixelData != null && PixelData.Length > 0 && PaletteColors != null && PaletteColors.Count > 0)
+        {
+            // 创建资源数据
+            var resourceData = new
+            {
+                Width = Width,
+                Height = Height,
+                Palette = PaletteColors.Select(kvp => new { Name = kvp.Key, Color = kvp.Value }).ToList(),
+                PixelData = PixelData
+            };
+            
+            // 序列化为 JSON（压缩格式）
+            var json = System.Text.Json.JsonSerializer.Serialize(resourceData, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false
+            });
+            
+            // 调用 JavaScript 保存文件
+            await JSRuntime.InvokeVoidAsync("saveResourceFile", json);
+        }
+        else
+        {
+            Message = "没有可保存的资源数据";
+        }
+    }
+    
+    private async Task OpenResource()
+    {
+        // 调用 JavaScript 打开文件对话框
+        var result = await JSRuntime.InvokeAsync<string>("openResourceFile");
+        
+        if (!string.IsNullOrEmpty(result))
+        {
+            try
+            {
+                // 反序列化资源数据
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                // 使用强类型反序列化
+                var resourceData = System.Text.Json.JsonSerializer.Deserialize<ResourceData>(result, options);
+                
+                if (resourceData != null)
+                {
+                    // 提取数据
+                    Width = resourceData.Width;
+                    Height = resourceData.Height;
+                    PixelData = resourceData.PixelData;
+                    
+                    // 重建调色板
+                    PaletteColors.Clear();
+                    foreach (var colorItem in resourceData.Palette)
+                    {
+                        var name = colorItem.Name;
+                        var color = colorItem.Color;
+                        PaletteColors[name] = color;
+                    }
+                    
+                    // 设置默认选择的颜色
+                    if (PaletteColors.Count > 0)
+                    {
+                        SelectedColor = PaletteColors.First().Value;
+                    }
+                    
+                    Message = "资源文件打开成功";
+                }
+            }
+            catch (Exception ex)
+            {
+                Message = $"打开资源文件失败: {ex.Message}";
+                Console.WriteLine($"Error opening resource file: {ex.Message}");
+            }
+        }
+    }
+    
+    // 资源数据结构
+    private class ResourceData
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public List<PaletteColor> Palette { get; set; } = new List<PaletteColor>();
+        public string[] PixelData { get; set; } = Array.Empty<string>();
+    }
+    
+    // 调色板颜色结构
+    private class PaletteColor
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
     }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)

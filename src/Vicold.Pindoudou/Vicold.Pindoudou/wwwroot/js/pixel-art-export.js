@@ -426,8 +426,118 @@ window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors,
     
     // 转换为图片并下载
     const dataURL = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = 'pixel-art.png';
-    link.href = dataURL;
-    link.click();
+    
+    // 检查是否支持FileSystemAccess API
+    if (window.showSaveFilePicker) {
+        // 使用现代的文件保存API
+        const options = {
+            suggestedName: 'pixel-art.png',
+            types: [
+                {
+                    description: 'PNG 图片文件',
+                    accept: {
+                        'image/png': ['.png']
+                    }
+                }
+            ]
+        };
+        
+        window.showSaveFilePicker(options).then(async (handle) => {
+            // 将dataURL转换为Blob
+            const response = await fetch(dataURL);
+            const blob = await response.blob();
+            
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        }).catch(error => {
+            console.error('保存文件失败:', error);
+            // 失败时 fallback 到传统方式
+            downloadImage(dataURL);
+        });
+    } else {
+        // fallback 到传统的下载方式
+        downloadImage(dataURL);
+    }
+    
+    // 传统下载方式
+    function downloadImage(dataURL) {
+        const link = document.createElement('a');
+        link.download = 'pixel-art.png';
+        link.href = dataURL;
+        link.click();
+    }
+};
+
+// 保存资源文件
+window.saveResourceFile = async function(jsonData) {
+    try {
+        // 创建Blob对象
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        
+        // 检查是否支持FileSystemAccess API
+        if (window.showSaveFilePicker) {
+            // 使用现代的文件保存API
+            const options = {
+                suggestedName: 'pixel-art-resource.json',
+                types: [
+                    {
+                        description: 'JSON 资源文件',
+                        accept: {
+                            'application/json': ['.json']
+                        }
+                    }
+                ]
+            };
+            
+            const handle = await window.showSaveFilePicker(options);
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        } else {
+            //  fallback 到传统的下载方式
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'pixel-art-resource.json';
+            link.click();
+            
+            // 释放URL对象
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+    } catch (error) {
+        console.error('保存文件失败:', error);
+    }
+};
+
+// 打开资源文件
+window.openResourceFile = function() {
+    return new Promise((resolve) => {
+        // 创建文件输入元素
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        // 监听文件选择事件
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    resolve(event.target.result);
+                };
+                reader.onerror = () => {
+                    resolve('');
+                };
+                reader.readAsText(file);
+            } else {
+                resolve('');
+            }
+        });
+        
+        // 触发文件选择对话框
+        input.click();
+    });
 };
