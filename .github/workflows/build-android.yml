@@ -37,7 +37,7 @@ jobs:
     - name: Decode keystore
       run: |
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" > keystore.b64
-        certutil -decode keystore.b64 release.keystore
+        certutil -decode keystore.b64 src\Vicold.Pindoudou\Vicold.Pindoudou\release.keystore
 
     # ⭐ Android 发布直接 publish 即可
     - name: Publish Android Release
