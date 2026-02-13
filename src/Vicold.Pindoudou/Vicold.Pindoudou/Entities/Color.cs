@@ -28,26 +28,34 @@ namespace Vicold.Pindoudou.Entities
         public int A { get; set; }
         
         /// <summary>
+        /// 颜色代码
+        /// </summary>
+        public string Code { get; set; } = string.Empty;
+        
+        /// <summary>
         /// 构造函数
         /// </summary>
         /// <param name="r">红色分量</param>
         /// <param name="g">绿色分量</param>
         /// <param name="b">蓝色分量</param>
         /// <param name="a">透明度分量</param>
-        public Color(int r, int g, int b, int a = 255)
+        /// <param name="code">颜色代码</param>
+        public Color(int r, int g, int b, int a = 255, string code = "")
         {
             R = Math.Clamp(r, 0, 255);
             G = Math.Clamp(g, 0, 255);
             B = Math.Clamp(b, 0, 255);
             A = Math.Clamp(a, 0, 255);
+            Code = code;
         }
         
         /// <summary>
         /// 从十六进制字符串创建颜色
         /// </summary>
         /// <param name="hex">十六进制颜色字符串</param>
+        /// <param name="code">颜色代码</param>
         /// <returns>颜色对象</returns>
-        public static Color FromHex(string hex)
+        public static Color FromHex(string hex, string code = "")
         {
             // 移除 # 前缀
             if (hex.StartsWith("#"))
@@ -78,7 +86,7 @@ namespace Vicold.Pindoudou.Entities
                 throw new ArgumentException("Invalid hex color format. Expected 6 or 8 characters.");
             }
             
-            return new Color(r, g, b, a);
+            return new Color(r, g, b, a, code);
         }
         
         /// <summary>
@@ -111,7 +119,7 @@ namespace Vicold.Pindoudou.Entities
         /// <returns>颜色副本</returns>
         public Color Clone()
         {
-            return new Color(R, G, B, A);
+            return new Color(R, G, B, A, Code);
         }
         
         /// <summary>

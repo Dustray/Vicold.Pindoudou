@@ -43,9 +43,9 @@
             <div class="panel-section">
                 <h4>当前颜色</h4>
                 <div class="color-preview-container">
-                    <div class="color-preview" style="background-color: @SelectedColor;">
+                    <div class="color-preview" style="background-color: @SelectedColor.ToString();">
                         <span style="color: @ColorUtil.GetContrastTextColor(SelectedColor); font-weight: bold;">
-                            @SelectedColor
+                            @SelectedColor.ToString()
                         </span>
                     </div>
                 </div>
@@ -61,19 +61,19 @@
                             @foreach (var color in PaletteColors)
                             {
                                 <div 
-                                    class="compact-color-item" 
-                                    @onclick="() => SelectColor(color.Value)"
-                                    title="@color.Key: @color.Value"
+                                class="compact-color-item" 
+                                @onclick="() => SelectColor(color.Value)"
+                                title="@color.Key: @color.Value.ToString()"
+                            >
+                                <div 
+                                    class="color-swatch" 
+                                    style="background-color: @color.Value.ToString()"
                                 >
-                                    <div 
-                                        class="color-swatch" 
-                                        style="background-color: @color.Value"
-                                    >
-                                        <div class="color-code" style="color: @ColorUtil.GetContrastTextColor(color.Value)">
-                                            @color.Key
-                                        </div>
+                                    <div class="color-code" style="color: @ColorUtil.GetContrastTextColor(color.Value)">
+                                        @color.Key
                                     </div>
                                 </div>
+                            </div>
                             }
                         }
                     </div>
@@ -172,12 +172,12 @@
                                                 {
                                                     <div 
                                                         class="pixel" 
-                                                        style="background-color: @PixelData[index]"
+                                                        style="background-color: @PixelData[index].ToString()"
                                                         @onmousedown="(e) => HandleMouseDown(currentX, currentY, e)"
                                                         @onmousedown:preventDefault="true"
                                                         @onmouseup="StopDrawing"
                                                         @onmouseover="() => DrawIfMouseDown(currentX, currentY)"
-                                                        title="@PixelData[index]"
+                                                        title="@PixelData[index].ToString()"
                                                     >
                                                         @if (ShowCodes && PaletteColors != null)
                                                         {
@@ -942,20 +942,20 @@
         Eraser
     }
     
-    private string[]? PixelData { get; set; }
+    private Color[]? PixelData { get; set; }
     private int Width { get; set; }
     private int Height { get; set; }
     private string Palette { get; set; } = "Mard";
-    private Dictionary<string, string> PaletteColors { get; set; } = new Dictionary<string, string>();
-    private Dictionary<string, string> ReversePaletteColors { get; set; } = new Dictionary<string, string>(); // 反向映射：颜色 -> 代码
-    private string SelectedColor { get; set; } = "#FFFFFF";
+    private Dictionary<string, Color> PaletteColors { get; set; } = new Dictionary<string, Color>();
+
+    private Color SelectedColor { get; set; } = new Color(255, 255, 255);
     private bool ShowCodes { get; set; } = true;
     private bool HideTransparentCodes { get; set; } = false;
     private string Message { get; set; } = string.Empty;
     private bool IsDrawing { get; set; } = false;
     private EditTool CurrentTool { get; set; } = EditTool.Brush;
-    private Stack<string[]> UndoStack { get; set; } = new Stack<string[]>();
-    private Stack<string[]> RedoStack { get; set; } = new Stack<string[]>();
+    private Stack<Color[]> UndoStack { get; set; } = new Stack<Color[]>();
+    private Stack<Color[]> RedoStack { get; set; } = new Stack<Color[]>();
     private bool IsSidebarCollapsed { get; set; } = false;
     private System.Diagnostics.Stopwatch? EditStopwatch { get; set; } // 用于性能测量
     private System.Threading.CancellationTokenSource? SaveDebounceToken { get; set; } // 防抖令牌
@@ -994,21 +994,39 @@
                         Height = navigationData.Height;
                         Palette = navigationData.Palette;
                         
+                        // 解析调色板颜色
+                        var paletteColorsString = navigationData.CurrentPalette;
+                        PaletteColors.Clear();
+                        foreach (var color in paletteColorsString)
+                        {
+                            var colorObj = Color.FromHex(color.Value, color.Key);
+                            PaletteColors[color.Key] = colorObj; // code为key，color为value
+                        }
+                        
                         // 解析像素数据
                         var pixelDataString = navigationData.PixelData;
                         if (!string.IsNullOrEmpty(pixelDataString))
                         {
-                            PixelData = pixelDataString.Split(',');
+                            var colorStrings = pixelDataString.Split(',');
+                            PixelData = new Color[colorStrings.Length];
+                            for (int i = 0; i < colorStrings.Length; i++)
+                            {
+                                var color = Color.FromHex(colorStrings[i]);
+                                // Find the corresponding code in PaletteColors
+                                foreach (var paletteColor in PaletteColors)
+                                {
+                                    if (paletteColor.Value.Equals(color))
+                                    {
+                                        color.Code = paletteColor.Key;
+                                        break;
+                                    }
+                                }
+                                PixelData[i] = color;
+                            }
                         }
-                        
-                        // 解析调色板颜色
-                        var paletteColorsString = navigationData.CurrentPalette;
-                        PaletteColors.Clear();
-                        ReversePaletteColors.Clear();
-                        foreach (var color in paletteColorsString)
+                        else
                         {
-                            PaletteColors[color.Key] = color.Value; // code为key，color为value
-                            ReversePaletteColors[color.Value] = color.Key; // 反向映射：color为key，code为value
+                            PixelData = Array.Empty<Color>();
                         }
                         
                         // 设置默认选择的颜色
@@ -1061,25 +1079,39 @@
                     Height = navigationData.Height;
                     Palette = navigationData.Palette;
                     
+                    // 解析调色板颜色
+                    var paletteColorsString = navigationData.CurrentPalette;
+                    PaletteColors.Clear();
+                    foreach (var color in paletteColorsString)
+                    {
+                        var colorObj = Color.FromHex(color.Value, color.Key);
+                        PaletteColors[color.Key] = colorObj; // code为key，color为value
+                    }
+                    
                     // 解析像素数据
                     var pixelDataString = navigationData.PixelData;
                     if (!string.IsNullOrEmpty(pixelDataString))
                     {
-                        PixelData = pixelDataString.Split(',');
+                        var colorStrings = pixelDataString.Split(',');
+                        PixelData = new Color[colorStrings.Length];
+                        for (int i = 0; i < colorStrings.Length; i++)
+                        {
+                            var color = Color.FromHex(colorStrings[i]);
+                            // Find the corresponding code in PaletteColors
+                            foreach (var paletteColor in PaletteColors)
+                            {
+                                if (paletteColor.Value.Equals(color))
+                                {
+                                    color.Code = paletteColor.Key;
+                                    break;
+                                }
+                            }
+                            PixelData[i] = color;
+                        }
                     }
                     else
                     {
-                        PixelData = Array.Empty<string>();
-                    }
-                    
-                    // 解析调色板颜色
-                    var paletteColorsString = navigationData.CurrentPalette;
-                    PaletteColors.Clear();
-                    ReversePaletteColors.Clear();
-                    foreach (var color in paletteColorsString)
-                    {
-                        PaletteColors[color.Key] = color.Value; // code为key，color为value
-                        ReversePaletteColors[color.Value] = color.Key; // 反向映射：color为key，code为value
+                        PixelData = Array.Empty<Color>();
                     }
                     
                     // 设置默认选择的颜色
@@ -1109,13 +1141,24 @@
         // 立即保存状态，不使用防抖
         if (PixelData != null && PixelData.Length > 0)
         {
+            // 将Color数组转换为字符串数组
+            var colorStrings = PixelData.Select(c => c.ToString()).ToArray();
+            var pixelDataString = string.Join(",", colorStrings);
+            
+            // 将PaletteColors转换为Dictionary<string, string>
+            var paletteColorsStrings = new Dictionary<string, string>();
+            foreach (var color in PaletteColors)
+            {
+                paletteColorsStrings[color.Key] = color.Value.ToString();
+            }
+            
             var navigationData = new NavigationData
             {
                 Width = Width,
                 Height = Height,
                 Palette = Palette,
-                PixelData = string.Join(",", PixelData),
-                CurrentPalette = PaletteColors
+                PixelData = pixelDataString,
+                CurrentPalette = paletteColorsStrings
             };
             
             var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
@@ -1125,10 +1168,10 @@
     
     private async Task EditPixel(int x, int y)
     {
-        string targetColor = SelectedColor;
+        Color targetColor = SelectedColor;
         if (CurrentTool == EditTool.Eraser)
         {
-            targetColor = "#FFFFFF00";
+            targetColor = new Color(255, 255, 255, 0);
         }
         
         Message = $"编辑像素: x={x}, y={y}, 颜色={targetColor}";
@@ -1136,7 +1179,7 @@
         if (PixelData != null)
         {
             // 保存当前状态到撤销栈
-            var currentState = new string[PixelData.Length];
+            var currentState = new Color[PixelData.Length];
             Array.Copy(PixelData, currentState, PixelData.Length);
             UndoStack.Push(currentState);
             
@@ -1144,12 +1187,19 @@
             RedoStack.Clear();
             
             Console.WriteLine($"PixelData length: {PixelData.Length}");
-            string[] newPixelData;
+            Color[] newPixelData;
             
             if (CurrentTool == EditTool.Brush || CurrentTool == EditTool.Eraser)
             {
                 // 画笔或橡皮擦工具：编辑单个像素
-                newPixelData = PixelArtUtil.EditPixel(x, y, Width, PixelData, targetColor);
+                // 手动实现编辑单个像素的逻辑，因为PixelArtUtil.EditPixel可能不支持Color类型
+                newPixelData = new Color[PixelData.Length];
+                Array.Copy(PixelData, newPixelData, PixelData.Length);
+                int index = y * Width + x;
+                if (index < newPixelData.Length)
+                {
+                    newPixelData[index] = targetColor;
+                }
             }
             else
             {
@@ -1172,18 +1222,18 @@
         }
     }
     
-    private string[] FloodFill(int startX, int startY, string newColor, string[] pixelData)
+    private Color[] FloodFill(int startX, int startY, Color newColor, Color[] pixelData)
     {
         // 创建像素数据的副本
-        var result = new string[pixelData.Length];
+        var result = new Color[pixelData.Length];
         Array.Copy(pixelData, result, pixelData.Length);
         
         // 获取起始像素的颜色
         int startIndex = startY * Width + startX;
-        string targetColor = pixelData[startIndex];
+        Color targetColor = pixelData[startIndex];
         
         // 如果目标颜色与新颜色相同，直接返回
-        if (targetColor == newColor)
+        if (targetColor.Equals(newColor))
         {
             return result;
         }
@@ -1198,7 +1248,7 @@
             
             // 向左扫描找到连续的目标颜色
             int currentX = x;
-            while (currentX >= 0 && result[currentX + y * Width] == targetColor)
+            while (currentX >= 0 && result[currentX + y * Width].Equals(targetColor))
             {
                 currentX--;
             }
@@ -1208,13 +1258,13 @@
             bool spanBelow = false;
             
             // 向右扫描并填充
-            while (currentX < Width && result[currentX + y * Width] == targetColor)
+            while (currentX < Width && result[currentX + y * Width].Equals(targetColor))
             {
                 // 设置新颜色
                 result[currentX + y * Width] = newColor;
                 
                 // 检查上方
-                if (!spanAbove && y > 0 && result[currentX + (y - 1) * Width] == targetColor)
+                if (!spanAbove && y > 0 && result[currentX + (y - 1) * Width].Equals(targetColor))
                 {
                     if (!leftCheck)
                     {
@@ -1222,13 +1272,13 @@
                         spanAbove = true;
                     }
                 }
-                else if (spanAbove && y > 0 && result[currentX + (y - 1) * Width] != targetColor)
+                else if (spanAbove && y > 0 && !result[currentX + (y - 1) * Width].Equals(targetColor))
                 {
                     spanAbove = false;
                 }
                 
                 // 检查下方
-                if (!spanBelow && y < Height - 1 && result[currentX + (y + 1) * Width] == targetColor)
+                if (!spanBelow && y < Height - 1 && result[currentX + (y + 1) * Width].Equals(targetColor))
                 {
                     if (!rightCheck)
                     {
@@ -1236,7 +1286,7 @@
                         spanBelow = true;
                     }
                 }
-                else if (spanBelow && y < Height - 1 && result[currentX + (y + 1) * Width] != targetColor)
+                else if (spanBelow && y < Height - 1 && !result[currentX + (y + 1) * Width].Equals(targetColor))
                 {
                     spanBelow = false;
                 }
@@ -1248,7 +1298,7 @@
         return result;
     }
     
-    private void SelectColor(string color)
+    private void SelectColor(Color color)
     {
         Message = $"选择颜色: {color}";
         Console.WriteLine($"SelectColor called with color={color}");
@@ -1296,7 +1346,7 @@
         if (UndoStack.Count > 0 && PixelData != null)
         {
             // 保存当前状态到重做栈
-            var currentState = new string[PixelData.Length];
+            var currentState = new Color[PixelData.Length];
             Array.Copy(PixelData, currentState, PixelData.Length);
             RedoStack.Push(currentState);
             
@@ -1320,7 +1370,7 @@
         if (RedoStack.Count > 0 && PixelData != null)
         {
             // 保存当前状态到撤销栈
-            var currentState = new string[PixelData.Length];
+            var currentState = new Color[PixelData.Length];
             Array.Copy(PixelData, currentState, PixelData.Length);
             UndoStack.Push(currentState);
             
@@ -1354,29 +1404,25 @@
     }
     
     /// <summary>
-    /// 根据颜色快速获取色号（使用反向映射）
+    /// 根据颜色快速获取色号
     /// </summary>
     /// <param name="color">颜色值</param>
     /// <param name="hideTransparentCodes">是否隐藏透明色代码</param>
     /// <returns>颜色对应的代码</returns>
-    private string GetCodeByColorFast(string color, bool hideTransparentCodes)
+    private string GetCodeByColorFast(Color color, bool hideTransparentCodes)
     {
         // 检查是否需要隐藏透明色代码
         if (hideTransparentCodes)
         {
-            // #RRGGBBAA 格式，最后两位为00
-            if (color.Length == 9 && color.EndsWith("00", System.StringComparison.OrdinalIgnoreCase))
+            // 透明度为0
+            if (color.A == 0)
             {
                 return string.Empty;
             }
         }
         
-        // 使用反向映射字典快速查找
-        if (ReversePaletteColors.TryGetValue(color, out var code))
-        {
-            return code;
-        }
-        return string.Empty;
+        // 直接使用颜色对象的Code属性
+        return color.Code;
     }
     
     private void ToggleSidebar()
@@ -1412,13 +1458,24 @@
             // 执行实际的保存操作
             if (!token.IsCancellationRequested && PixelData != null && PixelData.Length > 0)
             {
+                // 将Color数组转换为字符串数组
+                var colorStrings = PixelData.Select(c => c.ToString()).ToArray();
+                var pixelDataString = string.Join(",", colorStrings);
+                
+                // 将PaletteColors转换为Dictionary<string, string>
+                var paletteColorsStrings = new Dictionary<string, string>();
+                foreach (var color in PaletteColors)
+                {
+                    paletteColorsStrings[color.Key] = color.Value.ToString();
+                }
+                
                 var navigationData = new NavigationData
                 {
                     Width = Width,
                     Height = Height,
                     Palette = Palette,
-                    PixelData = string.Join(",", PixelData),
-                    CurrentPalette = PaletteColors
+                    PixelData = pixelDataString,
+                    CurrentPalette = paletteColorsStrings
                 };
                 
                 var jsonData = System.Text.Json.JsonSerializer.Serialize(navigationData);
@@ -1464,8 +1521,8 @@
             {
                 Width = Width,
                 Height = Height,
-                Palette = PaletteColors.Select(kvp => new { Name = kvp.Key, Color = kvp.Value }).ToList(),
-                PixelData = PixelData
+                Palette = PaletteColors.Select(kvp => new { Name = kvp.Key, Color = kvp.Value.ToString() }).ToList(),
+                PixelData = PixelData.Select(c => c.ToString()).ToArray()
             };
             
             // 序列化为 JSON（压缩格式）
@@ -1510,17 +1567,39 @@
                     // 提取数据
                     Width = resourceData.Width;
                     Height = resourceData.Height;
-                    PixelData = resourceData.PixelData ?? Array.Empty<string>();
                     
                     // 重建调色板
                     PaletteColors.Clear();
-                    ReversePaletteColors.Clear();
                     foreach (var colorItem in resourceData.Palette)
                     {
                         var name = colorItem.Name;
-                        var color = colorItem.Color;
-                        PaletteColors[name] = color;
-                        ReversePaletteColors[color] = name; // 反向映射：color为key，code为value
+                        var colorObj = Color.FromHex(colorItem.Color, name);
+                        PaletteColors[name] = colorObj;
+                    }
+                    
+                    // 解析像素数据
+                    if (resourceData.PixelData != null)
+                    {
+                        var colorStrings = resourceData.PixelData;
+                        PixelData = new Color[colorStrings.Length];
+                        for (int i = 0; i < colorStrings.Length; i++)
+                        {
+                            var color = Color.FromHex(colorStrings[i]);
+                            // Find the corresponding code in PaletteColors
+                            foreach (var paletteColor in PaletteColors)
+                            {
+                                if (paletteColor.Value.Equals(color))
+                                {
+                                    color.Code = paletteColor.Key;
+                                    break;
+                                }
+                            }
+                            PixelData[i] = color;
+                        }
+                    }
+                    else
+                    {
+                        PixelData = Array.Empty<Color>();
                     }
                     
                     // 设置默认选择的颜色

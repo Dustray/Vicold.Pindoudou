@@ -161,44 +161,10 @@ namespace Vicold.Pindoudou.Utils
         /// </summary>
         /// <param name="color">十六进制颜色字符串</param>
         /// <returns>亮度值 (0-1)</returns>
-        public static double CalculateColorLuminance(string color)
+        public static double CalculateColorLuminance(Vicold.Pindoudou.Entities.Color color)
         {
-            // 解析颜色值
-            int r, g, b;
-            
-            if (color.StartsWith("#"))
-            {
-                color = color.Substring(1);
-            }
-            
-            if (color.Length == 6)
-            {
-                // #RRGGBB 格式
-                r = Convert.ToInt32(color.Substring(0, 2), 16);
-                g = Convert.ToInt32(color.Substring(2, 2), 16);
-                b = Convert.ToInt32(color.Substring(4, 2), 16);
-            }
-            else if (color.Length == 8)
-            {
-                r = Convert.ToInt32(color.Substring(0, 2), 16);
-                g = Convert.ToInt32(color.Substring(2, 2), 16);
-                b = Convert.ToInt32(color.Substring(4, 2), 16);
-            }
-            else if (color.Length == 3)
-            {
-                // #RGB 格式
-                r = Convert.ToInt32(color.Substring(0, 1) + color.Substring(0, 1), 16);
-                g = Convert.ToInt32(color.Substring(1, 1) + color.Substring(1, 1), 16);
-                b = Convert.ToInt32(color.Substring(2, 1) + color.Substring(2, 1), 16);
-            }
-            else
-            {
-                // 默认黑色
-                return 0;
-            }
-            
             // 计算亮度（使用相对亮度公式）
-            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
         }
         
         /// <summary>
@@ -206,7 +172,7 @@ namespace Vicold.Pindoudou.Utils
         /// </summary>
         /// <param name="color">十六进制颜色字符串</param>
         /// <returns>对比度高的文本颜色</returns>
-        public static string GetContrastTextColor(string color)
+        public static string GetContrastTextColor(Vicold.Pindoudou.Entities.Color color)
         {
             // 计算亮度
             double luminance = CalculateColorLuminance(color);
@@ -220,7 +186,7 @@ namespace Vicold.Pindoudou.Utils
         /// </summary>
         /// <param name="color">十六进制颜色字符串</param>
         /// <returns>是否为浅色</returns>
-        public static bool IsLightColor(string color)
+        public static bool IsLightColor(Vicold.Pindoudou.Entities.Color color)
         {
             // 计算亮度
             double luminance = CalculateColorLuminance(color);
