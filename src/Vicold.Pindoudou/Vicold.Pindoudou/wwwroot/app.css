@@ -35,6 +35,7 @@
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    scrollbar-width: none;
 }
 
 a, .btn-link {
@@ -139,7 +140,6 @@ h1:focus {
 
 /* 应用容器 */
 .app-container {
-    min-height: 100vh;
     padding: 20px 0;
 }
 
