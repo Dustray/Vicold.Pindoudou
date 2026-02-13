@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
         <TargetFrameworks>net10.0-android;net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
@@ -60,21 +60,7 @@
 
         <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
         <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <MauiAsset Include="Data\Palettes\**" LogicalName="Data\Palettes\%(RecursiveDir)%(Filename)%(Extension)" />
-      <MauiAsset Include="Data\UserPalettes\**" LogicalName="Data\UserPalettes\%(RecursiveDir)%(Filename)%(Extension)" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <MauiAsset Remove="Data\Palettes\Mard53.txt" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Content Include="Data\Palettes\Mard53.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
+        <MauiAsset Include="Resources\Raw\Palettes\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
     <ItemGroup>
@@ -84,5 +70,6 @@
         <PackageReference Include="SkiaSharp" Version="3.119.2" />
         <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
     </ItemGroup>
+
 
 </Project>

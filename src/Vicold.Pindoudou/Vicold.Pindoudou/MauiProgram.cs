@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Vicold.Pindoudou.Utils;
 
 namespace Vicold.Pindoudou
 {
@@ -7,9 +6,6 @@ namespace Vicold.Pindoudou
     {
         public static MauiApp CreateMauiApp()
         {
-            // 初始化资产文件
-            AssetManager.InitializeAssets();
-            
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()

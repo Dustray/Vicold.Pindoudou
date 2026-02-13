@@ -201,7 +201,6 @@
     private Vicold.Pindoudou.Entities.Color[]? OriginalPixels { get; set; }
     private int OriginalWidth { get; set; }
     private int OriginalHeight { get; set; }
-    private List<string> PaletteColors { get; set; } = new List<string>();
     private List<PaletteInfo> AllPalettes { get; set; } = new List<PaletteInfo>();
     private bool IsGenerating { get; set; } = false;
     private string? ErrorMessage { get; set; }
@@ -214,9 +213,8 @@
         public string Type { get; set; } // "System" or "User"
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        await LoadPalette();
         LoadAllPalettes();
     }
 
@@ -292,6 +290,7 @@
                 AllPalettes.AddRange(userPalettes);
             }
         }
+
     }
 
     private Dictionary<string, string> LoadPaletteFromFile(string palettePath)
@@ -310,49 +309,8 @@
                 }
             }
         }
-        else
-        {
-            // 如果文件不存在，返回默认颜色
-            var defaultColors = new List<string> { "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF" };
-            for (int i = 0; i < defaultColors.Count; i++)
-            {
-                var color = defaultColors[i];
-                var code = GetPaletteCode(i);
-                palette[code] = color; // code为key，color为value
-            }
-        }
+        // 如果文件不存在，返回空字典，由调用方处理错误
         return palette;
-    }
-
-    private async Task LoadPalette()
-    {
-        // 使用跨平台兼容的应用数据目录
-        string appDataDir = FileSystem.AppDataDirectory;
-        var palettePath = Path.Combine(appDataDir, "Data", "Palettes", "Mard.txt");
-        
-        if (!File.Exists(palettePath))
-        {
-            // 尝试使用应用程序基础目录（用于Windows调试）
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            palettePath = Path.Combine(baseDir, "Data", "Palettes", "Mard.txt");
-        }
-
-        if (!File.Exists(palettePath))
-        {
-            // 尝试使用当前工作目录
-            palettePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "Palettes", "Mard.txt");
-        }
-
-        if (File.Exists(palettePath))
-        {
-            var lines = await File.ReadAllLinesAsync(palettePath);
-            PaletteColors = lines.Select(line => line.Split('\t')[1]).ToList();
-        }
-        else
-        {
-            // 如果文件不存在，使用默认颜色
-            PaletteColors = new List<string> { "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF" };
-        }
     }
 
     private async Task LoadImage(InputFileChangeEventArgs e)
@@ -429,25 +387,25 @@
         var selectedPaletteInfo = AllPalettes.FirstOrDefault(p => p.Name == SelectedPalette);
         if (selectedPaletteInfo != null)
         {
+            // 检查调色板文件是否存在
+            if (!File.Exists(selectedPaletteInfo.Path))
+            {
+                ErrorMessage = "没找到文件，请重新安装下载";
+                return;
+            }
+            
             // 加载对应的调色板文件
             var loadedPalette = LoadPaletteFromFile(selectedPaletteInfo.Path);
             currentPalette = loadedPalette;
-
+            if (currentPalette.Count == 0)
+            {
+                ErrorMessage = "当前调色板中没有颜色";
+                return;
+            }
         }
         else
         {
-            // 默认使用 Mard 调色板
-            // for (int i = 0; i < PaletteColors.Count; i++)
-            // {
-            //     var color = PaletteColors[i];
-            //     var code = GetPaletteCode(i);
-            //     currentPalette[code] = color;
-            // }
-        }
-
-        if (currentPalette.Count == 0)
-        {
-            ErrorMessage = "当前调色板中没有颜色";
+            ErrorMessage = "没找到文件，请重新安装下载";
             return;
         }
 
