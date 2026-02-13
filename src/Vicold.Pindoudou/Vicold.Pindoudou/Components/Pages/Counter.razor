@@ -3,6 +3,11 @@
 @using System.Collections.Generic
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
+@using Microsoft.Maui.Storage
+@using MauiGraphics = Microsoft.Maui.Graphics
+@using System.IO
+@using Microsoft.Maui.ApplicationModel
+@using Microsoft.Maui.Devices
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
@@ -1773,35 +1778,69 @@
     {
         if (PixelData != null && PixelData.Length > 0)
         {
-            // Convert Color objects to string representations
-            var pixelDataStrings = PixelData.Select(c => c.ToString()).ToArray();
-            var paletteColorsStrings = PaletteColors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString());
-            
-            await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, pixelDataStrings, paletteColorsStrings, ShowCodes, HideTransparentCodes);
+            try
+            {
+                // 使用 JavaScript 导出图片
+                var pixelDataStrings = PixelData.Select(c => c.ToString()).ToArray();
+                var paletteColorsStrings = PaletteColors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString());
+                
+                await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, pixelDataStrings, paletteColorsStrings, ShowCodes, HideTransparentCodes);
+                
+                Message = "图片导出成功";
+            }
+            catch (Exception ex)
+            {
+                Message = $"导出图片失败: {ex.Message}";
+            }
         }
     }
     
+    private string GetPindoudouDirectory()
+    {
+        // 获取 Pictures 目录
+        string picturesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+        // 创建 pindoudou 子目录
+        string pindoudouPath = Path.Combine(picturesPath, "pindoudou");
+        // 确保目录存在
+        Directory.CreateDirectory(pindoudouPath);
+        return pindoudouPath;
+    }
+
     private async Task SaveResource()
     {
         if (PixelData != null && PixelData.Length > 0 && PaletteColors != null && PaletteColors.Count > 0)
         {
-            // 创建资源数据
-            var resourceData = new
+            try
             {
-                Width = Width,
-                Height = Height,
-                Palette = PaletteColors.Select(kvp => new { Name = kvp.Key, Color = kvp.Value.ToString() }).ToList(),
-                PixelData = PixelData.Select(c => c.ToString()).ToArray()
-            };
-            
-            // 序列化为 JSON（压缩格式）
-            var json = System.Text.Json.JsonSerializer.Serialize(resourceData, new System.Text.Json.JsonSerializerOptions
+                // 创建资源数据
+                var resourceData = new
+                {
+                    Width = Width,
+                    Height = Height,
+                    Palette = PaletteColors.Select(kvp => new { Name = kvp.Key, Color = kvp.Value.ToString() }).ToList(),
+                    PixelData = PixelData.Select(c => c.ToString()).ToArray()
+                };
+                
+                // 序列化为 JSON
+                var json = System.Text.Json.JsonSerializer.Serialize(resourceData, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                
+                // 获取保存路径
+                string savePath = GetPindoudouDirectory();
+                string fileName = $"pindoudou_resource_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+                string fullPath = Path.Combine(savePath, fileName);
+                
+                // 写入文件
+                File.WriteAllText(fullPath, json);
+                
+                Message = $"资源已保存到: {fullPath}";
+            }
+            catch (Exception ex)
             {
-                WriteIndented = false
-            });
-            
-            // 调用 JavaScript 保存文件
-            await JSRuntime.InvokeVoidAsync("saveResourceFile", json);
+                Message = $"保存资源失败: {ex.Message}";
+            }
         }
         else
         {
@@ -1811,83 +1850,102 @@
     
     private async Task OpenResource()
     {
-        // 调用 JavaScript 打开文件对话框
-        var result = await JSRuntime.InvokeAsync<string>("openResourceFile");
-        
-        if (!string.IsNullOrEmpty(result))
+        try
         {
-            try
+            // 请求文件访问权限
+            var status = await Permissions.CheckStatusAsync<Permissions.StorageRead>();
+            if (status != PermissionStatus.Granted)
             {
-                // 反序列化资源数据
-                var options = new System.Text.Json.JsonSerializerOptions
+                status = await Permissions.RequestAsync<Permissions.StorageRead>();
+                if (status != PermissionStatus.Granted)
                 {
-                    PropertyNameCaseInsensitive = true
-                };
-                
-                // 使用强类型反序列化
-                var resourceData = System.Text.Json.JsonSerializer.Deserialize<ResourceData>(result, options);
-                
-                if (resourceData != null)
-                {
-                    // 重置状态
-                    UndoStack.Clear();
-                    RedoStack.Clear();
-                    
-                    // 提取数据
-                    Width = resourceData.Width;
-                    Height = resourceData.Height;
-                    
-                    // 重建调色板
-                    PaletteColors.Clear();
-                    foreach (var colorItem in resourceData.Palette)
-                    {
-                        var name = colorItem.Name;
-                        var colorObj = Color.FromHex(colorItem.Color, name);
-                        PaletteColors[name] = colorObj;
-                    }
-                    
-                    // 解析像素数据
-                    if (resourceData.PixelData != null)
-                    {
-                        var colorStrings = resourceData.PixelData;
-                        PixelData = new Color[colorStrings.Length];
-                        for (int i = 0; i < colorStrings.Length; i++)
-                        {
-                            var color = Color.FromHex(colorStrings[i]);
-                            // Find the corresponding code in PaletteColors
-                            foreach (var paletteColor in PaletteColors)
-                            {
-                                if (paletteColor.Value.Equals(color))
-                                {
-                                    color.Code = paletteColor.Key;
-                                    break;
-                                }
-                            }
-                            PixelData[i] = color;
-                        }
-                    }
-                    else
-                    {
-                        PixelData = Array.Empty<Color>();
-                    }
-                    
-                    // 设置默认选择的颜色
-                    if (PaletteColors.Count > 0)
-                    {
-                        SelectedColor = PaletteColors.First().Value;
-                    }
-                    
-                    Message = "资源文件打开成功";
-                    
-                    // 保存当前状态（使用立即保存版本，不使用防抖）
-                    await SaveCurrentStateImmediately();
+                    Message = "需要访问文件的权限才能加载资源";
+                    return;
                 }
             }
-            catch (Exception ex)
+
+            // 使用 FilePicker 选择文件
+            var result = await FilePicker.PickAsync();
+
+            if (result != null)
             {
-                Message = $"打开资源文件失败: {ex.Message}";
-                Console.WriteLine($"Error opening resource file: {ex.Message}");
+                // 读取文件内容
+                using var stream = await result.OpenReadAsync();
+                using var reader = new StreamReader(stream);
+                var content = await reader.ReadToEndAsync();
+                
+                if (!string.IsNullOrEmpty(content))
+                {
+                    // 反序列化资源数据
+                    var options = new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+                    
+                    // 使用强类型反序列化
+                    var resourceData = System.Text.Json.JsonSerializer.Deserialize<ResourceData>(content, options);
+                    
+                    if (resourceData != null)
+                    {
+                        // 重置状态
+                        UndoStack.Clear();
+                        RedoStack.Clear();
+                        
+                        // 提取数据
+                        Width = resourceData.Width;
+                        Height = resourceData.Height;
+                        
+                        // 重建调色板
+                        PaletteColors.Clear();
+                        foreach (var colorItem in resourceData.Palette)
+                        {
+                            var name = colorItem.Name;
+                            var colorObj = Color.FromHex(colorItem.Color, name);
+                            PaletteColors[name] = colorObj;
+                        }
+                        
+                        // 解析像素数据
+                        if (resourceData.PixelData != null)
+                        {
+                            var colorStrings = resourceData.PixelData;
+                            PixelData = new Color[colorStrings.Length];
+                            for (int i = 0; i < colorStrings.Length; i++)
+                            {
+                                var color = Color.FromHex(colorStrings[i]);
+                                // Find the corresponding code in PaletteColors
+                                foreach (var paletteColor in PaletteColors)
+                                {
+                                    if (paletteColor.Value.Equals(color))
+                                    {
+                                        color.Code = paletteColor.Key;
+                                        break;
+                                    }
+                                }
+                                PixelData[i] = color;
+                            }
+                        }
+                        else
+                        {
+                            PixelData = Array.Empty<Color>();
+                        }
+                        
+                        // 设置默认选择的颜色
+                        if (PaletteColors.Count > 0)
+                        {
+                            SelectedColor = PaletteColors.First().Value;
+                        }
+                        
+                        Message = "资源文件打开成功";
+                        
+                        // 保存当前状态（使用立即保存版本，不使用防抖）
+                        await SaveCurrentStateImmediately();
+                    }
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Message = $"加载资源失败: {ex.Message}";
         }
     }
     

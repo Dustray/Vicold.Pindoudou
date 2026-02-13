@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Maui.Graphics;
 
 namespace Vicold.Pindoudou.Entities
 {
@@ -159,6 +160,15 @@ namespace Vicold.Pindoudou.Entities
             {
                 return $"#{R:X2}{G:X2}{B:X2}{A:X2}";
             }
+        }
+
+        /// <summary>
+        /// 转换为 Microsoft.Maui.Graphics.Color
+        /// </summary>
+        /// <returns>Microsoft.Maui.Graphics.Color 对象</returns>
+        public Microsoft.Maui.Graphics.Color ToColor()
+        {
+            return new Microsoft.Maui.Graphics.Color(R / 255f, G / 255f, B / 255f, A / 255f);
         }
     }
 }

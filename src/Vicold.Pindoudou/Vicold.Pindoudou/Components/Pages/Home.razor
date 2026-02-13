@@ -1,10 +1,11 @@
 @page "/"
-@using Microsoft.AspNetCore.Components.Forms
 @using System.IO
 @using System
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
 @using Microsoft.Maui.Storage
+@using Microsoft.Maui.Media
+@using Microsoft.Maui.ApplicationModel
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 
@@ -27,8 +28,9 @@
                         <div class="mb-4">
                             <label class="form-label">上传图片</label>
                             <div class="custom-file-upload">
-                                <InputFile OnChange="LoadImage" accept=".jpg,.jpeg,.png,.gif" class="form-control-file" />
-                                <span class="file-upload-text">选择图片文件</span>
+                                <button type="button" class="btn btn-secondary w-100" @onclick="PickImage">
+                                    选择图片文件
+                                </button>
                             </div>
                         </div>
 
@@ -197,7 +199,6 @@
     }
     private string? OriginalImageUrl { get; set; }
     private string[]? PixelArtData { get; set; }
-    private IBrowserFile? uploadedFile;
     private Vicold.Pindoudou.Entities.Color[]? OriginalPixels { get; set; }
     private int OriginalWidth { get; set; }
     private int OriginalHeight { get; set; }
@@ -313,46 +314,76 @@
         return palette;
     }
 
-    private async Task LoadImage(InputFileChangeEventArgs e)
+    private async Task PickImage()
     {
-        uploadedFile = e.File;
-        var stream = uploadedFile.OpenReadStream();
-        var memoryStream = new MemoryStream();
-        await stream.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-
-        var bytes = memoryStream.ToArray();
-        OriginalImageUrl = $"data:{uploadedFile.ContentType};base64,{Convert.ToBase64String(bytes)}";
-
-        // 使用 Microsoft.Maui.Graphics 获取真实的图像尺寸
         try
         {
-            using var imageStream = new MemoryStream(bytes);
-            using var image = Microsoft.Maui.Graphics.Platform.PlatformImage.FromStream(imageStream);
-            //get pixel data
-            OriginalPixels = ImageUtil.GetPixelData(image);
-            OriginalWidth = (int)image.Width;
-            OriginalHeight = (int)image.Height;
-            
-            // 根据图片原始比例计算新的像素宽高，短边为50像素
-            if (OriginalWidth > 0 && OriginalHeight > 0)
+            // 请求媒体库权限
+            var status = await Permissions.CheckStatusAsync<Permissions.Media>();
+            if (status != PermissionStatus.Granted)
             {
-                if (OriginalWidth <= OriginalHeight)
+                status = await Permissions.RequestAsync<Permissions.Media>();
+                if (status != PermissionStatus.Granted)
                 {
-                    // 宽度是短边
-                    _pixelWidth = 50;
-                    _pixelHeight = (int)(OriginalHeight * 50.0 / OriginalWidth);
+                    ErrorMessage = "需要访问图片库的权限才能选择图片";
+                    return;
                 }
-                else
+            }
+
+            // 使用 MediaPicker 选择图片
+            var result = await MediaPicker.PickPhotoAsync(new MediaPickerOptions
+            {
+                Title = "选择图片"
+            });
+
+            if (result != null)
+            {
+                // 读取图片文件
+                using var stream = await result.OpenReadAsync();
+                var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                var bytes = memoryStream.ToArray();
+                OriginalImageUrl = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+
+                // 使用 Microsoft.Maui.Graphics 获取真实的图像尺寸
+                try
                 {
-                    // 高度是短边
-                    _pixelHeight = 50;
-                    _pixelWidth = (int)(OriginalWidth * 50.0 / OriginalHeight);
+                    using var imageStream = new MemoryStream(bytes);
+                    using var image = Microsoft.Maui.Graphics.Platform.PlatformImage.FromStream(imageStream);
+                    //get pixel data
+                    OriginalPixels = ImageUtil.GetPixelData(image);
+                    OriginalWidth = (int)image.Width;
+                    OriginalHeight = (int)image.Height;
+                    
+                    // 根据图片原始比例计算新的像素宽高，短边为50像素
+                    if (OriginalWidth > 0 && OriginalHeight > 0)
+                    {
+                        if (OriginalWidth <= OriginalHeight)
+                        {
+                            // 宽度是短边
+                            _pixelWidth = 50;
+                            _pixelHeight = (int)(OriginalHeight * 50.0 / OriginalWidth);
+                        }
+                        else
+                        {
+                            // 高度是短边
+                            _pixelHeight = 50;
+                            _pixelWidth = (int)(OriginalWidth * 50.0 / OriginalHeight);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ErrorMessage = "图片处理失败: " + ex.Message;
+                    return;
                 }
             }
         }
         catch (Exception ex)
         {
+            ErrorMessage = "选择图片失败: " + ex.Message;
             return;
         }
     }
@@ -364,12 +395,6 @@
         SuccessMessage = null;
 
         if (OriginalPixels is null)
-        {
-            ErrorMessage = $"生成失败：原始图像出错";
-            return;
-        }
-
-        if (uploadedFile == null)
         {
             ErrorMessage = "请先上传图片";
             return;
