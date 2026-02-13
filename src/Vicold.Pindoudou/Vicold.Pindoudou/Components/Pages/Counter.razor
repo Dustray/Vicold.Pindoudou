@@ -89,7 +89,6 @@
                 </div>
             </div>
 
-
             <!-- 选项设置 -->
             <div class="panel-section">
                 <h4>选项</h4>
@@ -104,7 +103,40 @@
                     </label>
                 </div>
             </div>
-
+            
+            <!-- 像素使用统计 -->
+            <div class="panel-section">
+                <h4>已使用色块</h4>
+                <div class="palette-display">
+                    @if (PixelUsageStats != null && PixelUsageStats.Count > 0)
+                    {
+                        <div class="scrollable-palette">
+                            @foreach (var stat in PixelUsageStats)
+                            {
+                                var color = stat.Key;
+                                var count = stat.Value;
+                                var textColor = ColorUtil.GetContrastTextColor(color);
+                                <div class="compact-color-item"
+                                @onclick="() => SelectColor(color)"
+                                title="@color.Code: @color.ToString()" >
+                                    <div class="color-swatch" style="background-color: @color.ToString()">
+                                            <div class="color-code" style="color: @textColor">
+                                        @color.Code
+                                    </div>
+                                    </div>
+                                    <div class="stat-count">@count</div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-stats">
+                            暂无统计数据
+                        </div>
+                    }
+                </div>
+            </div>
             <!-- 主要按钮 -->
             <div class="panel-section">
                 <div class="main-buttons">
@@ -401,19 +433,18 @@
     /* 调色板样式 */
     .palette-display {
         border: 1px solid #e9ecef;
-        padding: 1rem;
         background-color: #f8f9fa;
         border-radius: 8px;
         overflow: hidden;
     }
     
     .scrollable-palette {
+        padding: 1rem;
         display: grid;
         grid-template-columns: repeat(6, 1fr);
         gap: 8px;
         max-height: 400px;
         overflow-y: auto;
-        padding-right: 5px;
     }
     
     /* 滚动条样式 */
@@ -907,6 +938,63 @@
         }
     }
 
+    /* 像素统计样式 */
+    .pixel-stats {
+        border: 1px solid #e9ecef;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background-color: #ffffff;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .stat-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stat-color {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #e0e0e0;
+        flex-shrink: 0;
+    }
+    
+    .stat-code {
+        font-size: 12px;
+        font-weight: bold;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stat-count {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #333;
+        text-align: center;
+    }
+    
+    .empty-stats {
+        text-align: center;
+        color: #999;
+        font-size: 0.9rem;
+        padding: 1rem;
+    }
+    
     /* 响应式设计 */
     @@media (max-width: 768px) {
         .control-sidebar {
@@ -1026,6 +1114,24 @@
         .btn-text {
             font-size: 0.8rem;
         }
+        
+        .stat-item {
+            gap: 0.4rem;
+            padding: 0.4rem;
+        }
+        
+        .stat-color {
+            width: 35px;
+            height: 35px;
+        }
+        
+        .stat-code {
+            font-size: 10px;
+        }
+        
+        .stat-count {
+            font-size: 0.7rem;
+        }
     }
 </style>
 
@@ -1057,6 +1163,7 @@
     private System.Diagnostics.Stopwatch? EditStopwatch { get; set; } // 用于性能测量
     private System.Threading.CancellationTokenSource? SaveDebounceToken { get; set; } // 防抖令牌
     private const int SaveDebounceDelay = 1000; // 防抖延迟时间（毫秒）
+    private Dictionary<Color, int> PixelUsageStats { get; set; } = new Dictionary<Color, int>(); // 像素使用统计
 
     protected override async Task OnInitializedAsync()
     {
@@ -1143,6 +1250,9 @@
                 }
             }
         }
+        
+        // 计算像素使用统计数据
+        CalculatePixelUsageStats();
     }
     
     private async Task<bool> LoadFromNavigationData()
@@ -1219,6 +1329,9 @@
                     
                     // 保存当前状态（使用非防抖版本，确保立即保存）
                     await SaveCurrentStateImmediately();
+                    
+                    // 计算像素使用统计数据
+                    CalculatePixelUsageStats();
                     
                     return true; // 成功加载导航数据
                 }
@@ -1311,6 +1424,9 @@
             
             // 保存当前状态
             await SaveCurrentState();
+            
+            // 更新像素使用统计数据
+            CalculatePixelUsageStats();
         }
         else
         {
@@ -1466,6 +1582,9 @@
             
             // 保存当前状态
             await SaveCurrentState();
+            
+            // 更新像素使用统计数据
+            CalculatePixelUsageStats();
         }
         else
         {
@@ -1490,6 +1609,9 @@
             
             // 保存当前状态
             await SaveCurrentState();
+            
+            // 更新像素使用统计数据
+            CalculatePixelUsageStats();
         }
         else
         {
@@ -1548,6 +1670,29 @@
             PreviousTool = CurrentTool;
         }
         CurrentTool = newTool;
+    }
+    
+    /// <summary>
+    /// 计算像素使用统计数据
+    /// </summary>
+    private void CalculatePixelUsageStats()
+    {
+        PixelUsageStats.Clear();
+        
+        if (PixelData != null)
+        {
+            foreach (var color in PixelData)
+            {
+                if (PixelUsageStats.ContainsKey(color))
+                {
+                    PixelUsageStats[color]++;
+                }
+                else
+                {
+                    PixelUsageStats[color] = 1;
+                }
+            }
+        }
     }
     
     private async Task GoBack()
