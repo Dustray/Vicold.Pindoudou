@@ -24,17 +24,29 @@
             <div class="panel-section">
                 <h4>工具</h4>
                 <div class="tool-buttons">
-                    <button class="tool-btn @(CurrentTool == EditTool.Brush ? "active" : "")" @onclick="() => CurrentTool = EditTool.Brush">
+                    <button class="tool-btn @(CurrentTool == EditTool.Brush ? "active" : "")" @onclick="() => SwitchTool(EditTool.Brush)">
                         <div class="tool-icon">🖌️</div>
                         <div class="tool-name">画笔</div>
                     </button>
-                    <button class="tool-btn @(CurrentTool == EditTool.Bucket ? "active" : "")" @onclick="() => CurrentTool = EditTool.Bucket">
+                    <button class="tool-btn @(CurrentTool == EditTool.Bucket ? "active" : "")" @onclick="() => SwitchTool(EditTool.Bucket)">
                         <div class="tool-icon">🪣</div>
                         <div class="tool-name">油漆桶</div>
                     </button>
-                    <button class="tool-btn @(CurrentTool == EditTool.Eraser ? "active" : "")" @onclick="() => CurrentTool = EditTool.Eraser">
+                    <button class="tool-btn @(CurrentTool == EditTool.EyeDropper ? "active" : "")" @onclick="() => SwitchTool(EditTool.EyeDropper)">
+                        <div class="tool-icon">🎨</div>
+                        <div class="tool-name">取色器</div>
+                    </button>
+                    <button class="tool-btn @(CurrentTool == EditTool.Eraser ? "active" : "")" @onclick="() => SwitchTool(EditTool.Eraser)">
                         <div class="tool-icon">🧽</div>
                         <div class="tool-name">橡皮擦</div>
+                    </button>
+                    <button class="action-btn" @onclick="Undo" title="撤销 (Ctrl+Z)">
+                        <div class="action-icon">↶</div>
+                        <div class="action-name">撤销</div>
+                    </button>
+                    <button class="action-btn" @onclick="Redo" title="重做 (Ctrl+Y)">
+                        <div class="action-icon">↷</div>
+                        <div class="action-name">重做</div>
                     </button>
                 </div>
             </div>
@@ -45,7 +57,7 @@
                 <div class="color-preview-container">
                     <div class="color-preview" style="background-color: @SelectedColor.ToString();">
                         <span style="color: @ColorUtil.GetContrastTextColor(SelectedColor); font-weight: bold;">
-                            @SelectedColor.ToString()
+                            @SelectedColor.Code
                         </span>
                     </div>
                 </div>
@@ -80,20 +92,6 @@
                 </div>
             </div>
 
-            <!-- 操作按钮 -->
-            <div class="panel-section">
-                <h4>操作</h4>
-                <div class="action-buttons">
-                    <button class="action-btn" @onclick="Undo" title="撤销 (Ctrl+Z)">
-                        <div class="action-icon">↶</div>
-                        <div class="action-name">撤销</div>
-                    </button>
-                    <button class="action-btn" @onclick="Redo" title="重做 (Ctrl+Y)">
-                        <div class="action-icon">↷</div>
-                        <div class="action-name">重做</div>
-                    </button>
-                </div>
-            </div>
 
             <!-- 选项设置 -->
             <div class="panel-section">
@@ -177,7 +175,7 @@
                                                         @onmousedown:preventDefault="true"
                                                         @onmouseup="StopDrawing"
                                                         @onmouseover="() => DrawIfMouseDown(currentX, currentY)"
-                                                        title="@PixelData[index].ToString()"
+                                                        title="@PixelData[index].Code"
                                                     >
                                                         @if (ShowCodes && PaletteColors != null)
                                                         {
@@ -488,11 +486,13 @@
     /* 工具按钮样式 */
     .tool-buttons {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.75rem;
     }
     
     .tool-btn {
-        flex: 1;
+        flex: 1 1 calc(50% - 0.375rem); /* 每行显示两个按钮，减去一半的间距 */
+        min-width: 80px; /* 设置最小宽度，确保按钮不会太小 */
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -939,7 +939,8 @@
     {
         Brush,
         Bucket,
-        Eraser
+        Eraser,
+        EyeDropper
     }
     
     private Color[]? PixelData { get; set; }
@@ -954,6 +955,7 @@
     private string Message { get; set; } = string.Empty;
     private bool IsDrawing { get; set; } = false;
     private EditTool CurrentTool { get; set; } = EditTool.Brush;
+    private EditTool PreviousTool { get; set; } = EditTool.Brush;
     private Stack<Color[]> UndoStack { get; set; } = new Stack<Color[]>();
     private Stack<Color[]> RedoStack { get; set; } = new Stack<Color[]>();
     private bool IsSidebarCollapsed { get; set; } = false;
@@ -1296,9 +1298,40 @@
         // 左键开始批量修改
         if (e.Button == 0)
         {
-            IsBatchEditing = true;
-            await EditPixel(x, y);
-            LastEditTime = DateTime.Now;
+            if (CurrentTool == EditTool.EyeDropper)
+            {
+                // 取色器工具：获取点击位置的颜色
+                if (PixelData != null)
+                {
+                    int index = y * Width + x;
+                    if (index < PixelData.Length)
+                    {
+                        var color = PixelData[index];
+                        SelectColor(color);
+                        Message = $"取色成功: {color}";
+                        Console.WriteLine($"EyeDropper used at x={x}, y={y}, Color={color}");
+                        
+                        // 取色后自动跳转回上一个工具
+                        // 如果上一个工具不是画笔或油漆桶，则默认跳转到画笔工具
+                        if (PreviousTool == EditTool.Brush || PreviousTool == EditTool.Bucket)
+                        {
+                            CurrentTool = PreviousTool;
+                        }
+                        else
+                        {
+                            CurrentTool = EditTool.Brush;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // 保存当前工具作为上一个工具
+                PreviousTool = CurrentTool;
+                IsBatchEditing = true;
+                await EditPixel(x, y);
+                LastEditTime = DateTime.Now;
+            }
         }
         // 右键不做任何处理，让它触发zoomableContainer的拖动功能
     }
@@ -1409,6 +1442,17 @@
     private void ToggleSidebar()
     {
         IsSidebarCollapsed = !IsSidebarCollapsed;
+    }
+    
+    private void SwitchTool(EditTool newTool)
+    {
+        // 只有当当前工具不是取色器时，才保存为上一个工具
+        // 这样可以确保取色器不会覆盖上一个工具的记录
+        if (CurrentTool != EditTool.EyeDropper)
+        {
+            PreviousTool = CurrentTool;
+        }
+        CurrentTool = newTool;
     }
     
     private async Task GoBack()
