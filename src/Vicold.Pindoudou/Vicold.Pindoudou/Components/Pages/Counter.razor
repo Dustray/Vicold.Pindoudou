@@ -1238,60 +1238,41 @@
             return result;
         }
         
-        // 使用扫描线填充算法（更高效）
-        var spanStack = new Stack<(int, int, bool, bool)>();
-        spanStack.Push((startX, startY, false, false));
+        // 使用简单的4方向洪水填充算法
+        var queue = new Queue<(int, int)>();
+        queue.Enqueue((startX, startY));
         
-        while (spanStack.Count > 0)
+        // 定义四个方向：上、右、下、左
+        var directions = new (int, int)[] { (-1, 0), (0, 1), (1, 0), (0, -1) };
+        
+        while (queue.Count > 0)
         {
-            var (x, y, leftCheck, rightCheck) = spanStack.Pop();
+            var (x, y) = queue.Dequeue();
+            int index = y * Width + x;
             
-            // 向左扫描找到连续的目标颜色
-            int currentX = x;
-            while (currentX >= 0 && result[currentX + y * Width].Equals(targetColor))
-            {
-                currentX--;
-            }
-            currentX++;
-            
-            bool spanAbove = false;
-            bool spanBelow = false;
-            
-            // 向右扫描并填充
-            while (currentX < Width && result[currentX + y * Width].Equals(targetColor))
+            // 检查当前像素是否是目标颜色
+            if (result[index].Equals(targetColor))
             {
                 // 设置新颜色
-                result[currentX + y * Width] = newColor;
+                result[index] = newColor;
                 
-                // 检查上方
-                if (!spanAbove && y > 0 && result[currentX + (y - 1) * Width].Equals(targetColor))
+                // 检查四个方向的相邻像素
+                foreach (var (dx, dy) in directions)
                 {
-                    if (!leftCheck)
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    
+                    // 检查是否在边界内
+                    if (nx >= 0 && nx < Width && ny >= 0 && ny < Height)
                     {
-                        spanStack.Push((currentX, y - 1, false, true));
-                        spanAbove = true;
+                        int nIndex = ny * Width + nx;
+                        // 检查相邻像素是否是目标颜色
+                        if (result[nIndex].Equals(targetColor))
+                        {
+                            queue.Enqueue((nx, ny));
+                        }
                     }
                 }
-                else if (spanAbove && y > 0 && !result[currentX + (y - 1) * Width].Equals(targetColor))
-                {
-                    spanAbove = false;
-                }
-                
-                // 检查下方
-                if (!spanBelow && y < Height - 1 && result[currentX + (y + 1) * Width].Equals(targetColor))
-                {
-                    if (!rightCheck)
-                    {
-                        spanStack.Push((currentX, y + 1, true, false));
-                        spanBelow = true;
-                    }
-                }
-                else if (spanBelow && y < Height - 1 && !result[currentX + (y + 1) * Width].Equals(targetColor))
-                {
-                    spanBelow = false;
-                }
-                
-                currentX++;
             }
         }
         
@@ -1508,7 +1489,11 @@
     {
         if (PixelData != null && PixelData.Length > 0)
         {
-            await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, PixelData, PaletteColors, ShowCodes, HideTransparentCodes);
+            // Convert Color objects to string representations
+            var pixelDataStrings = PixelData.Select(c => c.ToString()).ToArray();
+            var paletteColorsStrings = PaletteColors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString());
+            
+            await JSRuntime.InvokeVoidAsync("exportPixelArtAsImage", Width, Height, pixelDataStrings, paletteColorsStrings, ShowCodes, HideTransparentCodes);
         }
     }
     
