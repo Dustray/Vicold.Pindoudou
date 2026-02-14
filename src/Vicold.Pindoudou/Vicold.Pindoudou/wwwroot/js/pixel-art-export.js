@@ -109,6 +109,13 @@ window.initializeZoomAndPan = function() {
     let startX = 0;
     let startY = 0;
     
+    // 触摸相关变量
+    let touchStartDistance = 0;
+    let touchStartMidpointX = 0;
+    let touchStartMidpointY = 0;
+    let isTouchDragging = false;
+    let lastDistance = 0;
+    
     // 从全局变量恢复缩放状态
     let scale = window.zoomState.scale;
     let translateX = window.zoomState.translateX;
@@ -200,6 +207,89 @@ window.initializeZoomAndPan = function() {
         translateY = mouseY - relativeY * scale;
         
         updateTransform();
+    });
+    
+    // 触摸开始事件
+    container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            // 单指触摸 - 开始拖动
+            isTouchDragging = true;
+            startX = e.touches[0].clientX - translateX;
+            startY = e.touches[0].clientY - translateY;
+            container.style.userSelect = 'none';
+        } else if (e.touches.length === 2) {
+            // 双指触摸 - 开始缩放
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            touchStartDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+            lastDistance = touchStartDistance;
+            
+            container.style.userSelect = 'none';
+        }
+    });
+    
+    // 触摸移动事件
+    container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && isTouchDragging) {
+            // 单指触摸 - 拖动
+            e.preventDefault();
+            translateX = e.touches[0].clientX - startX;
+            translateY = e.touches[0].clientY - startY;
+            updateTransform();
+        } else if (e.touches.length === 2) {
+            // 双指触摸 - 缩放
+            e.preventDefault();
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+            
+            if (touchStartDistance > 0 && lastDistance > 0) {
+                // 计算缩放因子，基于距离变化率
+                const distanceChange = currentDistance - lastDistance;
+                const baseZoomSpeed = 0.004; // 基础缩放速度因子
+                
+                // 基于当前缩放值的自适应缩放速度
+                // 当缩放值较小时，减小缩放速度，保持一致的缩放体验
+                const adaptiveZoomSpeed = baseZoomSpeed * Math.max(0.5, scale);
+                
+                // 计算新的缩放值，添加边界限制
+                const newScale = Math.max(0.1, Math.min(5, scale + distanceChange * adaptiveZoomSpeed));
+                
+                // 计算当前双指中心点
+                const currentMidpointX = (touch1.clientX + touch2.clientX) / 2;
+                const currentMidpointY = (touch1.clientY + touch2.clientY) / 2;
+                
+                // 计算缩放前后中心点在内容上的位置
+                const rect = container.getBoundingClientRect();
+                const midpointX = currentMidpointX - rect.left;
+                const midpointY = currentMidpointY - rect.top;
+                
+                const relativeX = (midpointX - translateX) / scale;
+                const relativeY = (midpointY - translateY) / scale;
+                
+                // 计算新的偏移量，使中心点位置保持不变
+                scale = newScale;
+                translateX = midpointX - relativeX * scale;
+                translateY = midpointY - relativeY * scale;
+                
+                updateTransform();
+                lastDistance = currentDistance;
+            }
+        }
+    });
+    
+    // 触摸结束事件
+    container.addEventListener('touchend', (e) => {
+        isTouchDragging = false;
+        touchStartDistance = 0;
+        container.style.userSelect = 'auto';
+    });
+    
+    // 触摸取消事件
+    container.addEventListener('touchcancel', (e) => {
+        isTouchDragging = false;
+        touchStartDistance = 0;
+        container.style.userSelect = 'auto';
     });
     
     // 检查是否是首次加载（缩放状态为默认值）
