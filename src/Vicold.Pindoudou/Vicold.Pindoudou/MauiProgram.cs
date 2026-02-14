@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Vicold.Pindoudou.Services;
 
 namespace Vicold.Pindoudou
 {
@@ -20,6 +21,9 @@ namespace Vicold.Pindoudou
 			builder.Services.AddBlazorWebViewDeveloperTools();
 			builder.Logging.AddDebug();
 #endif
+
+            // 注册图片选择服务
+            builder.Services.AddTransient<IImagePickerService, DefaultImagePickerService>();
 
             return builder.Build();
         }

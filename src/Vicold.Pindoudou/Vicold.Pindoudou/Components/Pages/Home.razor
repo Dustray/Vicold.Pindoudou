@@ -4,9 +4,11 @@
 @using System
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
+@using Vicold.Pindoudou.Services
 @using Microsoft.Maui.Storage
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
+@inject IImagePickerService ImagePickerService
 
 <div class="app-container" >
     <header class="app-header">
@@ -27,8 +29,9 @@
                         <div class="mb-4">
                             <label class="form-label">上传图片</label>
                             <div class="custom-file-upload">
-                                <InputFile OnChange="LoadImage" accept=".jpg,.jpeg,.png,.gif" class="form-control-file" />
-                                <span class="file-upload-text">选择图片文件</span>
+                                <button type="button" class="btn btn-primary w-100" @onclick="PickImage">
+                                    选择图片
+                                </button>
                             </div>
                         </div>
 
@@ -197,7 +200,7 @@
     }
     private string? OriginalImageUrl { get; set; }
     private string[]? PixelArtData { get; set; }
-    private IBrowserFile? uploadedFile;
+
     private Vicold.Pindoudou.Entities.Color[]? OriginalPixels { get; set; }
     private int OriginalWidth { get; set; }
     private int OriginalHeight { get; set; }
@@ -313,49 +316,64 @@
         return palette;
     }
 
-    private async Task LoadImage(InputFileChangeEventArgs e)
-    {
-        uploadedFile = e.File;
-        var stream = uploadedFile.OpenReadStream();
-        var memoryStream = new MemoryStream();
-        await stream.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-
-        var bytes = memoryStream.ToArray();
-        OriginalImageUrl = $"data:{uploadedFile.ContentType};base64,{Convert.ToBase64String(bytes)}";
-
-        // 使用 Microsoft.Maui.Graphics 获取真实的图像尺寸
-        try
+    private async Task PickImage()
         {
-            using var imageStream = new MemoryStream(bytes);
-            using var image = Microsoft.Maui.Graphics.Platform.PlatformImage.FromStream(imageStream);
-            //get pixel data
-            OriginalPixels = ImageUtil.GetPixelData(image);
-            OriginalWidth = (int)image.Width;
-            OriginalHeight = (int)image.Height;
-            
-            // 根据图片原始比例计算新的像素宽高，短边为50像素
-            if (OriginalWidth > 0 && OriginalHeight > 0)
+            var bytes = await ImagePickerService.PickImageAsync();
+            if (bytes != null)
             {
-                if (OriginalWidth <= OriginalHeight)
-                {
-                    // 宽度是短边
-                    _pixelWidth = 50;
-                    _pixelHeight = (int)(OriginalHeight * 50.0 / OriginalWidth);
-                }
-                else
-                {
-                    // 高度是短边
-                    _pixelHeight = 50;
-                    _pixelWidth = (int)(OriginalWidth * 50.0 / OriginalHeight);
-                }
+                await ProcessImage(bytes);
             }
         }
-        catch (Exception ex)
+
+        private async Task ProcessImage(byte[] bytes)
         {
-            return;
+            OriginalImageUrl = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+
+            // 使用 Microsoft.Maui.Graphics 获取真实的图像尺寸
+            try
+            {
+                using var imageStream = new MemoryStream(bytes);
+                using var image = Microsoft.Maui.Graphics.Platform.PlatformImage.FromStream(imageStream);
+                //get pixel data
+                OriginalPixels = ImageUtil.GetPixelData(image);
+                OriginalWidth = (int)image.Width;
+                OriginalHeight = (int)image.Height;
+                
+                // 根据图片原始比例计算新的像素宽高，短边为50像素
+                if (OriginalWidth > 0 && OriginalHeight > 0)
+                {
+                    if (OriginalWidth <= OriginalHeight)
+                    {
+                        // 宽度是短边
+                        _pixelWidth = 50;
+                        _pixelHeight = (int)(OriginalHeight * 50.0 / OriginalWidth);
+                    }
+                    else
+                    {
+                        // 高度是短边
+                        _pixelHeight = 50;
+                        _pixelWidth = (int)(OriginalWidth * 50.0 / OriginalHeight);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return;
+            }
         }
-    }
+
+        private async Task LoadImage(InputFileChangeEventArgs e)
+        {
+            // 保留原有方法以兼容Web平台
+            var file = e.File;
+            var stream = file.OpenReadStream();
+            var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            var bytes = memoryStream.ToArray();
+            await ProcessImage(bytes);
+        }
 
     private async Task GeneratePixelArt()
     {
@@ -369,7 +387,7 @@
             return;
         }
 
-        if (uploadedFile == null)
+        if (OriginalPixels == null)
         {
             ErrorMessage = "请先上传图片";
             return;

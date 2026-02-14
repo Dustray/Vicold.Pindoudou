@@ -1,0 +1,38 @@
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.Maui.Media;
+using Vicold.Pindoudou.Services;
+
+[assembly: Dependency(typeof(Vicold.Pindoudou.Platforms.Android.ImagePickerService))]
+
+namespace Vicold.Pindoudou.Platforms.Android
+{
+    public class ImagePickerService : IImagePickerService
+    {
+        public async Task<byte[]> PickImageAsync()
+        {
+            try
+            {
+                var result = await MediaPicker.Default.PickPhotoAsync(new MediaPickerOptions
+                {
+                    Title = "选择图片"
+                });
+
+                if (result != null)
+                {
+                    using var stream = await result.OpenReadAsync();
+                    using var memoryStream = new MemoryStream();
+                    await stream.CopyToAsync(memoryStream);
+                    return memoryStream.ToArray();
+                }
+
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+    }
+}
