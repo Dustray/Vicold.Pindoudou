@@ -25,6 +25,13 @@ namespace Vicold.Pindoudou
             // 注册图片选择服务
             builder.Services.AddTransient<IImagePickerService, DefaultImagePickerService>();
 
+            // 注册文件保存服务
+            #if ANDROID
+            builder.Services.AddTransient<IFileSaveService, Platforms.Android.FileSaveService>();
+            #else
+            builder.Services.AddTransient<IFileSaveService, DefaultFileSaveService>();
+            #endif
+
             return builder.Build();
         }
     }

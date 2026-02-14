@@ -3,8 +3,11 @@
 @using System.Collections.Generic
 @using Vicold.Pindoudou.Entities
 @using Vicold.Pindoudou.Utils
+@using Vicold.Pindoudou.Services
+@using Microsoft.JSInterop
 @inject NavigationManager NavigationManager
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
+@inject IFileSaveService FileSaveService
 
 <div class="app-container" @onkeydown="HandleKeyDown" tabindex="0">
 
@@ -1164,6 +1167,7 @@
     private System.Threading.CancellationTokenSource? SaveDebounceToken { get; set; } // 防抖令牌
     private const int SaveDebounceDelay = 1000; // 防抖延迟时间（毫秒）
     private Dictionary<Color, int> PixelUsageStats { get; set; } = new Dictionary<Color, int>(); // 像素使用统计
+    private DotNetObjectReference<Counter>? _dotNetReference; // 用于JavaScript调用C#方法
 
     protected override async Task OnInitializedAsync()
     {
@@ -1909,11 +1913,74 @@
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            // 创建DotNetObjectReference并传递给JavaScript
+            _dotNetReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("setDotNetReference", _dotNetReference);
+        }
+        
         if (PixelData != null && PixelData.Length > 0)
         {
             // 延迟调用，确保 DOM 元素已经完全渲染
             await Task.Delay(100);
             await JSRuntime.InvokeVoidAsync("initializeZoomAndPan");
+        }
+    }
+    
+    // 处理组件销毁，释放DotNetObjectReference
+    public void Dispose()
+    {
+        _dotNetReference?.Dispose();
+    }
+    
+    // 保存图片，由JavaScript调用
+    [JSInvokable]
+    public async Task SaveImage(byte[] imageData, string fileName)
+    {
+        try
+        {
+            bool success = await FileSaveService.SaveImageAsync(imageData, fileName);
+            if (success)
+            {
+                Message = $"图片保存成功: {fileName}";
+            }
+            else
+            {
+                Message = "图片保存失败";
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Message = $"保存图片时出错: {ex.Message}";
+            Console.WriteLine($"Error saving image: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+    
+    // 保存资源文件，由JavaScript调用
+    [JSInvokable]
+    public async Task SaveResource(string jsonData, string fileName)
+    {
+        try
+        {
+            bool success = await FileSaveService.SaveResourceAsync(jsonData, fileName);
+            if (success)
+            {
+                Message = $"资源保存成功: {fileName}";
+            }
+            else
+            {
+                Message = "资源保存失败";
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Message = $"保存资源时出错: {ex.Message}";
+            Console.WriteLine($"Error saving resource: {ex.Message}");
+            StateHasChanged();
         }
     }
 }

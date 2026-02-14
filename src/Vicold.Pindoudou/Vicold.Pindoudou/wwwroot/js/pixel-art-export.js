@@ -302,6 +302,17 @@ window.initializeZoomAndPan = function() {
     }
 };
 
+// 检测当前平台
+window.isAndroidPlatform = function() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    return /android/i.test(userAgent);
+};
+
+// 设置DotNet引用
+window.setDotNetReference = function(dotNetReference) {
+    window.dotNetReference = dotNetReference;
+};
+
 // 导出像素图为图片
 window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors, showCodes, hideTransparentCodes) {
     // 配置参数
@@ -517,37 +528,80 @@ window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors,
     // 转换为图片并下载
     const dataURL = canvas.toDataURL('image/png');
     
-    // 检查是否支持FileSystemAccess API
-    if (window.showSaveFilePicker) {
-        // 使用现代的文件保存API
-        const options = {
-            suggestedName: 'pixel-art.png',
-            types: [
-                {
-                    description: 'PNG 图片文件',
-                    accept: {
-                        'image/png': ['.png']
+    // 检查是否为Android平台
+    const isAndroid = window.isAndroidPlatform && window.isAndroidPlatform();
+    if (isAndroid && window.dotNetReference) {
+        // 在Android平台上，使用C#服务保存
+        canvas.toBlob(function(blob) {
+            if (!blob) {
+                console.error('创建blob失败');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                try {
+                    const arrayBuffer = reader.result;
+                    if (!arrayBuffer) {
+                        console.error('读取blob失败');
+                        return;
                     }
+                    const byteArray = new Uint8Array(arrayBuffer);
+                    const fileName = 'pixel-art-' + new Date().getTime() + '.png';
+                    
+                    // 调用C#服务保存图片
+                    window.dotNetReference.invokeMethodAsync('SaveImage', byteArray, fileName);
+                } catch (error) {
+                    console.error('保存图片失败:', error);
                 }
-            ]
-        };
-        
-        window.showSaveFilePicker(options).then(async (handle) => {
-            // 将dataURL转换为Blob
-            const response = await fetch(dataURL);
-            const blob = await response.blob();
-            
-            const writable = await handle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-        }).catch(error => {
+            };
+            reader.onerror = function() {
+                console.error('读取blob时出错');
+            };
+            reader.readAsArrayBuffer(blob);
+        }, 'image/png');
+    } else {
+        // 在其他平台上，使用传统的保存方式
+        try {
+            // 检查是否支持FileSystemAccess API
+            if (window.showSaveFilePicker) {
+                // 使用现代的文件保存API
+                const options = {
+                    suggestedName: 'pixel-art.png',
+                    types: [
+                        {
+                            description: 'PNG 图片文件',
+                            accept: {
+                                'image/png': ['.png']
+                            }
+                        }
+                    ]
+                };
+                
+                window.showSaveFilePicker(options).then(function(handle) {
+                    // 将dataURL转换为Blob
+                    return fetch(dataURL).then(function(response) {
+                        return response.blob();
+                    }).then(function(blob) {
+                        return handle.createWritable();
+                    }).then(function(writable) {
+                        return writable.write(blob).then(function() {
+                            return writable.close();
+                        });
+                    });
+                }).catch(function(error) {
+                    console.error('保存文件失败:', error);
+                    // 失败时 fallback 到传统方式
+                    downloadImage(dataURL);
+                });
+            } else {
+                // fallback 到传统的下载方式
+                downloadImage(dataURL);
+            }
+        } catch (error) {
             console.error('保存文件失败:', error);
             // 失败时 fallback 到传统方式
             downloadImage(dataURL);
-        });
-    } else {
-        // fallback 到传统的下载方式
-        downloadImage(dataURL);
+        }
     }
     
     // 传统下载方式
@@ -560,47 +614,78 @@ window.exportPixelArtAsImage = function(width, height, pixelData, paletteColors,
 };
 
 // 保存资源文件
-window.saveResourceFile = async function(jsonData) {
+window.saveResourceFile = function(jsonData) {
     try {
-        // 创建Blob对象
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        
-        // 检查是否支持FileSystemAccess API
-        if (window.showSaveFilePicker) {
-            // 使用现代的文件保存API
-            const options = {
-                suggestedName: 'pixel-art-resource.json',
-                types: [
-                    {
-                        description: 'JSON 资源文件',
-                        accept: {
-                            'application/json': ['.json']
-                        }
-                    }
-                ]
-            };
-            
-            const handle = await window.showSaveFilePicker(options);
-            const writable = await handle.createWritable();
-            await writable.write(blob);
-            await writable.close();
+        // 检查是否为Android平台
+        const isAndroid = window.isAndroidPlatform && window.isAndroidPlatform();
+        if (isAndroid && window.dotNetReference) {
+            // 在Android平台上，使用C#服务保存
+            const fileName = 'pixel-art-resource-' + new Date().getTime() + '.json';
+            window.dotNetReference.invokeMethodAsync('SaveResource', jsonData, fileName)
+                .catch(function(error) {
+                    console.error('保存资源失败:', error);
+                });
         } else {
-            //  fallback 到传统的下载方式
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'pixel-art-resource.json';
-            link.click();
+            // 在其他平台上，使用传统的保存方式
+            // 创建Blob对象
+            const blob = new Blob([jsonData], { type: 'application/json' });
             
-            // 释放URL对象
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-            }, 100);
+            // 检查是否支持FileSystemAccess API
+            if (window.showSaveFilePicker) {
+                // 使用现代的文件保存API
+                const options = {
+                    suggestedName: 'pixel-art-resource.json',
+                    types: [
+                        {
+                            description: 'JSON 资源文件',
+                            accept: {
+                                'application/json': ['.json']
+                            }
+                        }
+                    ]
+                };
+                
+                window.showSaveFilePicker(options).then(function(handle) {
+                    return handle.createWritable();
+                }).then(function(writable) {
+                    return writable.write(blob).then(function() {
+                        return writable.close();
+                    });
+                }).catch(function(error) {
+                    console.error('保存文件失败:', error);
+                    // 失败时 fallback 到传统方式
+                    downloadResourceFile(jsonData);
+                });
+            } else {
+                //  fallback 到传统的下载方式
+                downloadResourceFile(jsonData);
+            }
         }
     } catch (error) {
         console.error('保存文件失败:', error);
+        // 失败时 fallback 到传统方式
+        downloadResourceFile(jsonData);
     }
 };
+
+// 传统下载资源文件方式
+function downloadResourceFile(jsonData) {
+    try {
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'pixel-art-resource.json';
+        link.click();
+        
+        // 释放URL对象
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
+    } catch (error) {
+        console.error('下载资源文件失败:', error);
+    }
+}
 
 // 打开资源文件
 window.openResourceFile = function() {
