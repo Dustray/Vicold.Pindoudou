@@ -31,7 +31,7 @@ jobs:
     - name: Update version in README.md
       run: |
         VERSION=${{ steps.extract-version.outputs.version }}
-        sed -i "s/- \*\*构建版本\*\*：1/- \*\*构建版本\*\*：$VERSION/g" README.md
+        sed -i "s/- \*\*构建版本\*\*：.*/- \*\*构建版本\*\*：$VERSION/g" README.md
 
     - name: Commit and push changes
       run: |

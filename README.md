@@ -3,7 +3,7 @@
 
 ## 版本信息
 
-- **最新版本**：[![GitHub release](https://img.shields.io/github/release/vicold/Vicold.Pindoudou.svg)](https://github.com/vicold/Vicold.Pindoudou/releases/latest)
+- **最新版本**：[![GitHub release](https://img.shields.io/github/release/dustray/Vicold.Pindoudou.svg)](https://github.com/dustray/Vicold.Pindoudou/releases/latest)
 - **构建版本**：1.1.3.1.2
 
 > 构建版本会在创建新的release时自动更新
